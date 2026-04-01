@@ -1,6 +1,6 @@
 {
   "name": "startme-local-clone",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A lightweight browser start page extension with custom tabs, RSS feeds, bookmarks, tasks, and weather - fully local storage",
   "private": false,
   "license": "MIT",
@@ -26,6 +26,7 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.88",
     "lucide-react": "^1.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

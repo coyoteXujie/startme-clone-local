@@ -250,13 +250,13 @@ const App: React.FC = () => {
       if (!widget || widget.type !== 'links') return;
 
       const links = widget.data.links || [];
+      const url = newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`;
       const updatedLinks = links.map((link: any) =>
         link.id === editingLink.linkId
           ? {
               ...link,
               name: newLinkName.trim(),
-              url: newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`,
-              icon: `https://www.google.com/s2/favicons?domain=${new URL(newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`).hostname}&sz=256`,
+              url,
             }
           : link
       );
@@ -272,11 +272,11 @@ const App: React.FC = () => {
       if (!widget || widget.type !== 'links') return;
 
       const links = widget.data.links || [];
+      const url = newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`;
       const newLink = {
         id: `link-${Date.now()}`,
         name: newLinkName.trim(),
-        url: newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`,
-        icon: `https://www.google.com/s2/favicons?domain=${new URL(newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`).hostname}&sz=256`,
+        url,
       };
 
       await storage.updateWidget(activeTabId, widget.id, {
@@ -302,16 +302,55 @@ const App: React.FC = () => {
     setDraggedWidget(dragData);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    // 设置拖拽时的半透明效果
+    e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, 20, 20);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnId: string, index: number) => {
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+
+    const column = activeTab?.columns.find((c) => c.id === columnId);
+    if (!column) return;
+
+    const widgets = column.widgets;
+    const columnEl = e.currentTarget as HTMLElement;
+    const columnRect = columnEl.getBoundingClientRect();
+    const scrollY = columnEl.scrollTop || 0;
+    const relativeY = e.clientY - columnRect.top + scrollY;
+
+    // 查找鼠标位置对应的 widget 索引
+    let dropIndex = widgets.length;
+    for (let i = 0; i < widgets.length; i++) {
+      const widgetEl = columnEl.querySelector(`[data-widget-index="${i}"]`);
+      if (widgetEl) {
+        const widgetRect = widgetEl.getBoundingClientRect();
+        const widgetMiddle = widgetRect.top - columnRect.top + widgetRect.height / 2 + scrollY;
+        if (relativeY < widgetMiddle) {
+          dropIndex = i;
+          break;
+        }
+      }
+    }
+
     setDragOverColumn(columnId);
-    setDragOverIndex(index);
+    setDragOverIndex(dropIndex);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent, _columnId: string) => {
+    e.preventDefault();
+    // 只有当鼠标真正离开当前 column 时才清除状态
+    // 使用 bounding box 检查鼠标是否还在 column 元素内
+    const column = e.currentTarget as HTMLElement;
+    const rect = column.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    // 如果鼠标还在 column 范围内，不清除状态
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      return;
+    }
+
     setDragOverColumn(null);
     setDragOverIndex(null);
   };
@@ -497,7 +536,7 @@ const App: React.FC = () => {
     }
   };
 
-  const renderWidget = (widget: Widget, columnId: string, widgetIndex: number) => {
+  const renderWidget = (widget: Widget, columnId: string, _widgetIndex: number) => {
     const props = {
       widget,
       tabId: activeTabId,
@@ -508,12 +547,6 @@ const App: React.FC = () => {
       },
       onDelete: () => handleDeleteWidget(widget.id),
       onToggleCollapsed: () => handleToggleWidgetCollapsed(widget.id),
-      onDragStart: (e: React.DragEvent) => handleDragStart(e, widget.id, columnId),
-      onDragOver: (e: React.DragEvent) => handleDragOver(e, columnId, widgetIndex),
-      onDragLeave: handleDragLeave,
-      onDrop: (e: React.DragEvent) => handleDrop(e, columnId, widgetIndex),
-      onDragEnd: handleDragEnd,
-      isDraggedOver: dragOverColumn === columnId && dragOverIndex === widgetIndex,
     };
 
     switch (widget.type) {
@@ -774,9 +807,9 @@ const App: React.FC = () => {
               <div
                 key={column.id}
                 className={`column ${dragOverColumn === column.id ? 'drag-over-column' : ''}`}
-                onDragOver={(e) => handleDragOver(e, column.id, column.widgets.length)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, column.id, column.widgets.length)}
+                onDragOver={(e) => handleDragOver(e, column.id)}
+                onDragLeave={(e) => handleDragLeave(e, column.id)}
+                onDrop={(e) => handleDrop(e, column.id, dragOverIndex ?? column.widgets.length)}
               >
                 {column.widgets.length === 0 && (
                   <button
@@ -793,14 +826,12 @@ const App: React.FC = () => {
                   {column.widgets.map((widget, widgetIndex) => (
                     <div
                       key={widget.id}
+                      data-widget-index={widgetIndex}
                       className={`widget-container ${widget.collapsed ? 'collapsed' : ''} ${
                         dragOverColumn === column.id && dragOverIndex === widgetIndex ? 'drag-over' : ''
                       }`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, widget.id, column.id)}
-                      onDragOver={(e) => handleDragOver(e, column.id, widgetIndex)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, column.id, widgetIndex)}
                       onDragEnd={handleDragEnd}
                     >
                       {!widget.collapsed && (

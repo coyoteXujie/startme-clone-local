@@ -86,17 +86,16 @@ export const storage = {
    * - 迁移背景图片到单独存储
    */
   migrateData(data: any): StorageData {
-    // 为书签补充 icon 字段的辅助函数
+    // 为书签重新生成图标 URL（使用网站自身的 favicon.ico）
     const addIconsToLinks = (widget: any) => {
       if (widget.type === 'links' && widget.data?.links) {
         const updatedLinks = widget.data.links.map((link: any) => {
-          if (!link.icon || link.icon.trim() === '') {
-            try {
-              const domain = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`).hostname;
-              link.icon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-            } catch {
-              link.icon = '';
-            }
+          // 强制重新生成图标 URL，覆盖旧的错误图标
+          try {
+            const domain = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`).hostname;
+            link.icon = `https://${domain}/favicon.ico`;
+          } catch {
+            // URL 解析失败，不设置 icon，让组件层处理
           }
           return link;
         });

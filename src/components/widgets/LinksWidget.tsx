@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Widget, LinkItem } from '../../types';
-import { ChevronDown, Edit2, Plus, X } from 'lucide-react';
+import { ChevronDown, Edit2, Plus, X, Grid, Cloud } from 'lucide-react';
 
 interface LinksWidgetProps {
   widget: Widget;
@@ -13,7 +13,8 @@ interface LinksWidgetProps {
 
 const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggleCollapsed, onRequestOpenModal }) => {
   const [links, setLinks] = useState<LinkItem[]>(widget.data.links || []);
-  const [viewMode] = useState<'cloud' | 'grid'>(widget.data.viewMode || 'grid');
+  const [viewMode, setViewMode] = useState<'cloud' | 'grid'>(widget.data.viewMode || 'grid');
+  const [failedIcons, setFailedIcons] = useState<Set<string>>(new Set());
 
   // 从 URL 提取域名
   const getDomainFromUrl = (url: string): string => {
@@ -25,28 +26,70 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     }
   };
 
-  // 获取 Google favicon 服务生成的图标 URL
+  // 获取 favicon URL - 使用 Yandex 图标服务（国内可用）
   const getFaviconUrl = (url: string): string => {
     const domain = getDomainFromUrl(url);
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=256`;
+    return `https://favicon.yandex.net/favicon/${domain}`;
   };
 
-  // 监听 widget.data.links 变化，自动补充缺失的图标
-  useEffect(() => {
-    const currentLinks = widget.data.links || [];
-    const linksNeedUpdate = currentLinks.some((link: LinkItem) => !link.icon || link.icon.trim() === '');
+  // 生成默认图标（使用首字母）- 模仿 start.me 风格
+  const getDefaultIcon = (name: string): string => {
+    const firstChar = name.trim().charAt(0).toUpperCase() || 'L';
+    // 更丰富的颜色 palette，灵感来自 start.me
+    const gradients = [
+      ['rgba(102, 126, 234, 0.9)', 'rgba(118, 75, 162, 0.9)'],
+      ['rgba(240, 147, 251, 0.9)', 'rgba(245, 86, 158, 0.9)'],
+      ['rgba(79, 172, 254, 0.9)', 'rgba(0, 242, 234, 0.9)'],
+      ['rgba(67, 233, 123, 0.9)', 'rgba(56, 190, 118, 0.9)'],
+      ['rgba(250, 112, 154, 0.9)', 'rgba(254, 191, 119, 0.9)'],
+      ['rgba(53, 92, 125, 0.9)', 'rgba(108, 91, 123, 0.9)'],
+      ['rgba(255, 118, 117, 0.9)', 'rgba(254, 185, 86, 0.9)'],
+      ['rgba(107, 141, 61, 0.9)', 'rgba(53, 102, 82, 0.9)'],
+    ];
+    const colorIndex = name.length % gradients.length;
+    const [color1, color2] = gradients[colorIndex];
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="grad${colorIndex}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${color1}"/>
+          <stop offset="100%" stop-color="${color2}"/>
+        </linearGradient>
+      </defs>
+      <rect fill="url(#grad${colorIndex})" width="100" height="100" rx="22"/>
+      <text x="50" y="65" fontSize="50" text-anchor="middle" fill="white" font-weight="600" font-family="Arial, sans-serif">${firstChar}</text>
+    </svg>`;
+  };
 
-    if (linksNeedUpdate) {
-      const linksWithIcons = currentLinks.map((link: LinkItem) => {
-        const icon = !link.icon || link.icon.trim() === '' ? getFaviconUrl(link.url) : link.icon;
-        return { ...link, icon };
-      });
-      setLinks(linksWithIcons);
-      onDataChange({ links: linksWithIcons, viewMode });
-    } else {
-      setLinks(currentLinks);
+  // 将 SVG 字符串转换为 Data URL - 使用安全的 Base64 编码
+  const getDataUrlIcon = (svgString: string): string => {
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(svgString);
+    let binary = '';
+    uint8Array.forEach(byte => {
+      binary += String.fromCharCode(byte);
+    });
+    return 'data:image/svg+xml;base64,' + btoa(binary);
+  };
+
+  // 获取图标 URL - 优先使用真实 favicon，失败时使用字母图标
+  const getIconUrl = (link: LinkItem): string => {
+    if (failedIcons.has(link.id)) {
+      return getDataUrlIcon(getDefaultIcon(link.name));
     }
-  }, [widget.data.links]);
+    return getFaviconUrl(link.url);
+  };
+
+  // 图标加载失败时的处理
+  const handleIconError = (link: LinkItem) => {
+    setFailedIcons(prev => new Set(prev).add(link.id));
+  };
+
+  // 切换视图模式
+  const handleToggleViewMode = async () => {
+    const newMode = viewMode === 'cloud' ? 'grid' : 'cloud';
+    setViewMode(newMode);
+    await onDataChange({ links, viewMode: newMode });
+  };
 
   const syncData = async (newLinks: LinkItem[]) => {
     setLinks(newLinks);
@@ -66,7 +109,7 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     onRequestOpenModal({ linkId: link.id, isEdit: true }, link);
   };
 
-  // 根据名称长度获取字体大小分类
+  // 根据名称长度获取分类 (1-8 或 long)
   const getNameLengthCategory = (name: string): string => {
     const len = name.length;
     if (len <= 1) return '1';
@@ -82,7 +125,16 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     <div className="links-widget widget-content">
       <h3 className="widget-title" onClick={onToggleCollapsed}>
         <span>{widget.title}</span>
-        <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+        <div className="widget-title-actions" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={handleToggleViewMode}
+            className="view-mode-toggle"
+            title={viewMode === 'grid' ? '切换到云图' : '切换到网格'}
+          >
+            {viewMode === 'grid' ? <Cloud size={16} /> : <Grid size={16} />}
+          </button>
+          <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+        </div>
       </h3>
 
       {widget.collapsed ? (
@@ -108,19 +160,11 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
                     className="link-item"
                   >
                     <img
-                      src={link.icon}
+                      src={getIconUrl(link)}
                       alt=""
                       className="link-icon"
                       loading="lazy"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        const domain = getDomainFromUrl(link.url);
-                        if (target.src.includes('google.com')) {
-                          target.src = `https://api.iconify.design/${domain}.svg`;
-                        } else {
-                          target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23667eea" width="100" height="100" rx="20"/><text x="50" y="68" fontSize="50" text-anchor="middle" fill="white">🔗</text></svg>';
-                        }
-                      }}
+                      onError={() => handleIconError(link)}
                     />
                     <span className="link-name">{link.name}</span>
                   </a>

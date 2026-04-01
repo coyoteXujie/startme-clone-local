@@ -12,25 +12,16 @@ interface WeatherWidgetProps {
 
 interface WeatherInfo {
   city: string;
-  temp: number;
-  condition: string;
-  icon: string;
-  high: number;
-  low: number;
-  humidity: number;
-  windSpeed: number;
   forecast: Array<{
     day: string;
-    date: string;
     high: number;
     low: number;
     icon: string;
-    condition: string;
   }>;
 }
 
 // 城市名称到经纬度的映射（用于 Open-Meteo API）
-const CITY_COORDS: Record<string, { lat: number; lon: number; nameEn?: string }> = {
+const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   '北京': { lat: 39.9042, lon: 116.4074 },
   '上海': { lat: 31.2304, lon: 121.4737 },
   '西安': { lat: 34.3416, lon: 108.9398 },
@@ -56,52 +47,11 @@ const getWeatherIcon = (code: number): string => {
   return 'cloud';
 };
 
-// 天气代码转文字
-const getWeatherText = (code: number): string => {
-  const textMap: Record<number, string> = {
-    0: '晴',
-    1: '主要晴',
-    2: '部分多云',
-    3: '阴',
-    45: '雾',
-    48: '雾凇',
-    51: '毛毛雨',
-    53: '毛毛雨',
-    55: '毛毛雨',
-    56: '冻毛毛雨',
-    57: '冻毛毛雨',
-    61: '小雨',
-    63: '中雨',
-    65: '大雨',
-    66: '冻雨',
-    67: '冻雨',
-    71: '小雪',
-    73: '中雪',
-    75: '大雪',
-    77: '雪粒',
-    80: '小阵雨',
-    81: '中阵雨',
-    82: '大阵雨',
-    85: '小阵雪',
-    86: '大阵雪',
-    95: '雷雨',
-    96: '雷雨伴有冰雹',
-    99: '雷雨伴有冰雹',
-  };
-  return textMap[code] || '未知';
-};
-
 // 获取星期几
 const getDayOfWeek = (dateStr: string): string => {
   const date = new Date(dateStr);
   const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   return days[date.getDay()];
-};
-
-// 获取日期
-const getDayDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
 };
 
 const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
@@ -119,7 +69,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
     try {
       const coords = CITY_COORDS[city] || { lat: 39.9042, lon: 116.4074 };
 
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7`;
 
       const res = await fetch(url);
       if (!res.ok) {
@@ -127,50 +77,30 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       }
 
       const data = await res.json();
-
-      const current = data.current;
       const daily = data.daily;
 
-      // 只显示最近 5 天预报
-      const forecast = daily.time.slice(0, 5).map((dateStr: string, index: number) => ({
+      // 显示 6 天预报（今天 + 未来 5 天）
+      const forecast = daily.time.slice(0, 6).map((dateStr: string, index: number) => ({
         day: index === 0 ? '今天' : getDayOfWeek(dateStr),
-        date: getDayDate(dateStr),
         high: Math.round(daily.temperature_2m_max[index]),
         low: Math.round(daily.temperature_2m_min[index]),
         icon: getWeatherIcon(daily.weather_code[index]),
-        condition: getWeatherText(daily.weather_code[index]),
       }));
 
       setWeather({
         city,
-        temp: Math.round(current.temperature_2m),
-        condition: getWeatherText(current.weather_code),
-        icon: getWeatherIcon(current.weather_code),
-        high: Math.round(daily.temperature_2m_max[0]),
-        low: Math.round(daily.temperature_2m_min[0]),
-        humidity: current.relative_humidity_2m || 0,
-        windSpeed: current.wind_speed_10m || 0,
         forecast,
       });
     } catch (error) {
       console.error('获取天气失败:', error);
       setWeather({
         city,
-        temp: 15,
-        condition: '数据不可用',
-        icon: 'cloud',
-        high: 20,
-        low: 10,
-        humidity: 50,
-        windSpeed: 10,
-        // 5 天预报
-        forecast: Array(5).fill(null).map((_, i) => ({
+        // 6 天预报（今天 +5 天）
+        forecast: Array(6).fill(null).map((_, i) => ({
           day: i === 0 ? '今天' : getDayOfWeek(new Date(Date.now() + i * 86400000).toISOString()),
-          date: getDayDate(new Date(Date.now() + i * 86400000).toISOString()),
           high: 20,
           low: 10,
           icon: 'cloud',
-          condition: '未知',
         })),
       });
     }
@@ -233,7 +163,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
       {widget.collapsed ? (
         <div className="collapsed-content">
-          <span className="collapsed-summary">{activeCity}: {weather?.temp}°C {weather?.condition}</span>
+          <span className="collapsed-summary">{activeCity}: {weather?.forecast?.[0]?.high}°/{weather?.forecast?.[0]?.low}°</span>
         </div>
       ) : (
         <>
@@ -273,19 +203,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
           {weather && (
             <>
-              {/* 当前天气和预报水平排列 */}
-              <div className="weather-current">
-                <div className="weather-current-label">现在</div>
-                <div className="weather-current-icon">
-                  {renderWeatherIcon(weather.icon, 32)}
-                </div>
-                <div className="weather-temp">{weather.temp}°</div>
-              </div>
-
-              {/* 天气预报 */}
+              {/* 天气预报（今天 + 未来 5 天，共 6 天） */}
               <div className="weather-forecast">
                 {weather.forecast.map((day, index) => (
-                  <div key={index} className="forecast-day">
+                  <div key={index} className={`forecast-day${index === 0 ? ' forecast-day-today' : ''}`}>
                     <div className="forecast-day-name">{day.day}</div>
                     <div className="forecast-icon">
                       {renderWeatherIcon(day.icon, 24)}

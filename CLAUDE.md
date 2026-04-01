@@ -36,12 +36,14 @@ npm run lint      # ESLint 检查
 App.tsx (状态管理：tabs, activeTabId, bgImage, searchEngine)
 ├── TabBar.tsx (标签页导航)
 ├── AddWidgetModal.tsx (添加小组件弹窗)
-└── widgets/
+├── ToastContainer.tsx (消息提示)
+├── ErrorBoundary.tsx (错误边界)
+└── components/widgets/
     ├── TaskWidget.tsx      (任务管理)
     ├── WeatherWidget.tsx   (天气信息 - Open-Meteo API)
     ├── RSSWidget.tsx       (RSS 订阅 - rss2json 转换)
-    ├── ToolsWidget.tsx     (快捷工具)
-    └── LinksWidget.tsx     (书签 - 云图/网格视图)
+    ├── LinksWidget.tsx     (书签 - 云图/网格视图)
+    └── PomodoroWidget.tsx  (番茄钟)
 ```
 
 **布局结构**
@@ -67,19 +69,24 @@ App.tsx (状态管理：tabs, activeTabId, bgImage, searchEngine)
 
 ## 小组件类型
 
-5 种小组件类型 (`WidgetType`)：
+6 种小组件类型 (`WidgetType`):
 - `tasks` - 任务管理（待办清单）
 - `weather` - 天气信息（多城市，7 天预报）
 - `rss` - RSS 订阅源
-- `tools` - 快捷工具链接
 - `links` - 自定义书签链接（云图/网格视图）
+- `pomodoro` - 番茄钟计时器
 
 ## 类型定义
 
 核心类型定义在 `src/types/index.ts`：
 - `Tab` → `Column[]` (4 列) → `Widget[]` (垂直堆叠)
-- 5 种 WidgetType: `tasks` | `weather` | `rss` | `tools` | `links`
+- WidgetType: `tasks` | `weather` | `rss` | `links` | `pomodoro`
 - 所有小组件共享 `Widget` 基础接口，通过 `data` 字段区分
+
+## 自定义 Hooks
+
+- `useToast` - 消息提示管理（success/error/info/dismissToast）
+- `useKeyboardShortcuts` - 键盘快捷键处理
 
 ## 注意事项
 
