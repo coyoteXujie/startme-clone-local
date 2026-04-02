@@ -292,6 +292,25 @@ const App: React.FC = () => {
     setNewLinkUrl('');
   };
 
+  // 处理添加书签（直接在组件内表单添加）
+  const handleAddBookmark = async (widgetId: string, name: string, url: string) => {
+    const widget = activeTab?.columns.flatMap((c) => c.widgets).find((w) => w.id === widgetId);
+    if (!widget || widget.type !== 'links') return;
+
+    const links = widget.data.links || [];
+    const newLink = {
+      id: `link-${Date.now()}`,
+      name: name.trim(),
+      url: url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`,
+    };
+
+    await storage.updateWidget(activeTabId, widget.id, {
+      data: { ...widget.data, links: [...links, newLink] },
+    });
+    await loadData();
+    success('书签已添加');
+  };
+
   // 拖拽处理函数
   const handleDragStart = (e: React.DragEvent, widgetId: string, columnId: string) => {
     const dragData: DragData = {
@@ -571,6 +590,7 @@ const App: React.FC = () => {
             }
             setShowLinkModal(true);
           }}
+          onAddBookmark={(widgetId: string, name: string, url: string) => handleAddBookmark(widgetId, name, url)}
         />;
       case 'pomodoro':
         return <PomodoroWidget {...props} />;

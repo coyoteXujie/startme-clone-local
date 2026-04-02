@@ -9,12 +9,16 @@ interface LinksWidgetProps {
   onDataChange: (data: any) => void;
   onToggleCollapsed: () => void;
   onRequestOpenModal: (link: { linkId?: string; isEdit: boolean }, linkData?: LinkItem | null) => void;
+  onAddBookmark?: (widgetId: string, name: string, url: string) => Promise<void>;
 }
 
-const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggleCollapsed, onRequestOpenModal }) => {
+const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggleCollapsed, onRequestOpenModal, onAddBookmark }) => {
   const [links, setLinks] = useState<LinkItem[]>(widget.data.links || []);
   const [viewMode, setViewMode] = useState<'cloud' | 'grid'>(widget.data.viewMode || 'grid');
   const [failedIcons, setFailedIcons] = useState<Set<string>>(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   // 从 URL 提取域名
   const getDomainFromUrl = (url: string): string => {
@@ -117,8 +121,25 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     return 'long';
   };
 
-  const openAddModal = () => {
-    onRequestOpenModal({ isEdit: false }, null);
+  const handleAddLink = async () => {
+    if (!newLinkName.trim() || !newLinkUrl.trim()) return;
+
+    const url = newLinkUrl.trim().startsWith('http')
+      ? newLinkUrl.trim()
+      : `https://${newLinkUrl.trim()}`;
+
+    if (onAddBookmark) {
+      await onAddBookmark(widget.id, newLinkName.trim(), url);
+      setNewLinkName('');
+      setNewLinkUrl('');
+      setShowAddForm(false);
+    }
+  };
+
+  const openAddForm = () => {
+    setShowAddForm(true);
+    setNewLinkName('');
+    setNewLinkUrl('');
   };
 
   return (
@@ -189,42 +210,70 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
             )}
           </div>
 
-          {/* 添加书签按钮 - 与其他组件保持一致 */}
-          <button
-            onClick={openAddModal}
-            style={{
-              marginTop: '12px',
-              padding: '10px 16px',
-              width: '100%',
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-              border: '1px solid rgba(102, 126, 234, 0.2)',
-              borderRadius: 'var(--radius-lg)',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: '500',
-              color: 'var(--color-primary)',
-              transition: 'all var(--transition-fast)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--primary-gradient)';
-              e.currentTarget.style.color = 'white';
-              e.currentTarget.style.borderColor = 'transparent';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)';
-              e.currentTarget.style.color = 'var(--color-primary)';
-              e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.2)';
-              e.currentTarget.style.transform = 'none';
-            }}
-          >
-            <Plus size={16} />
-            添加书签
-          </button>
+          {showAddForm ? (
+            <div className="add-rss-form" style={{ marginTop: '12px' }}>
+              <input
+                type="text"
+                placeholder="📛 书签名称"
+                value={newLinkName}
+                onChange={(e) => setNewLinkName(e.target.value)}
+                autoFocus
+              />
+              <input
+                type="text"
+                placeholder="🔗 网址链接 (例如：baidu.com)"
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+              />
+              <button onClick={handleAddLink}>➕ 添加</button>
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewLinkName('');
+                  setNewLinkUrl('');
+                }}
+                type="button"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={openAddForm}
+              style={{
+                marginTop: '12px',
+                padding: '10px 16px',
+                width: '100%',
+                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+                border: '1px solid rgba(102, 126, 234, 0.2)',
+                borderRadius: 'var(--radius-lg)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: 'var(--color-primary)',
+                transition: 'all var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--primary-gradient)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)';
+                e.currentTarget.style.color = 'var(--color-primary)';
+                e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.2)';
+                e.currentTarget.style.transform = 'none';
+              }}
+            >
+              <Plus size={16} />
+              添加书签
+            </button>
+          )}
         </>
       )}
     </div>
