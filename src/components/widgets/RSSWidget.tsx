@@ -17,6 +17,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [loadingFeeds, setLoadingFeeds] = useState<Set<string>>(new Set());
   const [feedPages, setFeedPages] = useState<Record<string, number>>({});
+  const [activeFeedId, setActiveFeedId] = useState<string | null>(feeds[0]?.id || null);
 
   const ITEMS_PER_PAGE = 5;
 
@@ -40,6 +41,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
 
     const updatedFeeds = [...feeds, newFeed];
     setFeeds(updatedFeeds);
+    setActiveFeedId(feedId); // 添加后自动切换到新源
     setLoadingFeeds(prev => new Set(prev).add(feedId));
     await onDataChange({ feeds: updatedFeeds });
     setNewFeedName('');
@@ -100,6 +102,16 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const handleDeleteFeed = async (feedId: string) => {
     const updatedFeeds = feeds.filter((feed) => feed.id !== feedId);
     setFeeds(updatedFeeds);
+
+    // 如果删除的是当前激活的源，自动切换到其他源
+    if (activeFeedId === feedId) {
+      if (updatedFeeds.length > 0) {
+        setActiveFeedId(updatedFeeds[0].id);
+      } else {
+        setActiveFeedId(null);
+      }
+    }
+
     await onDataChange({ feeds: updatedFeeds });
   };
 
@@ -139,87 +151,108 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
             {feeds.length === 0 ? (
               <div className="empty-state">暂无 RSS 源</div>
             ) : (
-              feeds.map((feed) => (
-                <div key={feed.id} className="rss-feed">
-                  <div className="rss-feed-header">
-                    <h4>{feed.name}</h4>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => loadRSSFeed(feed.id, feed.url)}
-                        disabled={loadingFeeds.has(feed.id)}
-                        className="rss-refresh-btn"
-                        title="刷新"
-                      >
-                        <RefreshCw size={14} className={loadingFeeds.has(feed.id) ? 'spinning' : ''} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFeed(feed.id)}
-                        className="rss-delete-btn"
-                        title="删除"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <ul className="rss-items">
-                    {feed.items.length === 0 ? (
-                      loadingFeeds.has(feed.id) ? (
-                        <li className="empty-state loading">正在加载 RSS 内容...</li>
-                      ) : (
-                        (feed as any).error ? (
-                          <li className="empty-state error">
-                            ⚠️ RSS 解析失败：{(feed as any).error}
-                            <br />
-                            <span style={{ fontSize: '10px', color: '#999' }}>
-                              提示：rss2json 免费版每月限 10000 次请求，且不支持所有 RSS 格式
-                            </span>
-                          </li>
-                        ) : (
-                          <li className="empty-state">暂无内容，点击刷新</li>
-                        )
-                      )
-                    ) : (
-                      <>
-                        {feed.items
-                          .slice(
-                            (feedPages[feed.id] || 0) * ITEMS_PER_PAGE,
-                            ((feedPages[feed.id] || 0) + 1) * ITEMS_PER_PAGE
-                          )
-                          .map((item: RSSItem) => (
-                            <li key={item.id} className="rss-item">
-                              <a href={item.link} target="_blank" rel="noopener noreferrer">
-                                {item.title}
-                              </a>
-                              {item.pubDate && (
-                                <div className="rss-date">{formatPubDate(item.pubDate)}</div>
-                              )}
-                            </li>
-                          ))}
-                        {/* 分页控制 */}
-                        <li className="rss-pagination">
-                          <button
-                            onClick={() => handlePageChange(feed.id, -1)}
-                            disabled={(feedPages[feed.id] || 0) === 0}
-                            className="page-btn prev"
-                          >
-                            上一页
-                          </button>
-                          <span className="page-info">
-                            {(feedPages[feed.id] || 0) + 1} / {Math.ceil(feed.items.length / ITEMS_PER_PAGE)}
-                          </span>
-                          <button
-                            onClick={() => handlePageChange(feed.id, 1)}
-                            disabled={((feedPages[feed.id] || 0) + 1) * ITEMS_PER_PAGE >= feed.items.length}
-                            className="page-btn next"
-                          >
-                            下一页
-                          </button>
-                        </li>
-                      </>
-                    )}
-                  </ul>
+              <>
+                {/* RSS 源标签栏 - 横向切换 */}
+                <div className="rss-tabs">
+                  {feeds.map((feed) => (
+                    <button
+                      key={feed.id}
+                      className={`rss-tab ${activeFeedId === feed.id ? 'active' : ''}`}
+                      onClick={() => setActiveFeedId(feed.id)}
+                    >
+                      {feed.name}
+                    </button>
+                  ))}
                 </div>
-              ))
+
+                {/* 当前选中的 RSS 源内容 */}
+                {activeFeedId && feeds.find(f => f.id === activeFeedId) && (
+                  <div className="rss-feed">
+                    <div className="rss-feed-header">
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <button
+                          onClick={() => loadRSSFeed(activeFeedId, feeds.find(f => f.id === activeFeedId)!.url)}
+                          disabled={loadingFeeds.has(activeFeedId)}
+                          className="rss-refresh-btn"
+                          title="刷新"
+                        >
+                          <RefreshCw size={14} className={loadingFeeds.has(activeFeedId) ? 'spinning' : ''} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFeed(activeFeedId)}
+                          className="rss-delete-btn"
+                          title="删除"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <ul className="rss-items">
+                      {(() => {
+                        const feed = feeds.find(f => f.id === activeFeedId)!;
+                        if (feed.items.length === 0) {
+                          if (loadingFeeds.has(activeFeedId)) {
+                            return <li className="empty-state loading">正在加载 RSS 内容...</li>;
+                          } else if ((feed as any).error) {
+                            return (
+                              <li className="empty-state error">
+                                ⚠️ RSS 解析失败：{(feed as any).error}
+                                <br />
+                                <span style={{ fontSize: '10px', color: '#999' }}>
+                                  提示：rss2json 免费版每月限 10000 次请求，且不支持所有 RSS 格式
+                                </span>
+                              </li>
+                            );
+                          } else {
+                            return <li className="empty-state">暂无内容，点击刷新</li>;
+                          }
+                        } else {
+                          const currentPage = feedPages[activeFeedId] || 0;
+                          return (
+                            <>
+                              {feed.items
+                                .slice(
+                                  currentPage * ITEMS_PER_PAGE,
+                                  (currentPage + 1) * ITEMS_PER_PAGE
+                                )
+                                .map((item: RSSItem) => (
+                                  <li key={item.id} className="rss-item">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer">
+                                      {item.title}
+                                    </a>
+                                    {item.pubDate && (
+                                      <div className="rss-date">{formatPubDate(item.pubDate)}</div>
+                                    )}
+                                  </li>
+                                ))}
+                              {/* 分页控制 */}
+                              <li className="rss-pagination">
+                                <button
+                                  onClick={() => handlePageChange(activeFeedId, -1)}
+                                  disabled={currentPage === 0}
+                                  className="page-btn prev"
+                                >
+                                  上一页
+                                </button>
+                                <span className="page-info">
+                                  {currentPage + 1} / {Math.ceil(feed.items.length / ITEMS_PER_PAGE)}
+                                </span>
+                                <button
+                                  onClick={() => handlePageChange(activeFeedId, 1)}
+                                  disabled={(currentPage + 1) * ITEMS_PER_PAGE >= feed.items.length}
+                                  className="page-btn next"
+                                >
+                                  下一页
+                                </button>
+                              </li>
+                            </>
+                          );
+                        }
+                      })()}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -236,6 +269,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
                 placeholder="RSS 链接 (https://...)"
                 value={newFeedUrl}
                 onChange={(e) => setNewFeedUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddFeed()}
               />
               <button onClick={handleAddFeed}>添加</button>
               <button

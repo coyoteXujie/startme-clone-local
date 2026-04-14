@@ -19,10 +19,10 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
     shortcuts.forEach(shortcut => {
       const matches =
         event.key.toLowerCase() === shortcut.key.toLowerCase() &&
-        (!!shortcut.ctrl === event.ctrlKey || shortcut.ctrl === undefined) &&
-        (!!shortcut.shift === event.shiftKey || shortcut.shift === undefined) &&
-        (!!shortcut.alt === event.altKey || shortcut.alt === undefined) &&
-        (!!shortcut.meta === event.metaKey || shortcut.meta === undefined);
+        (shortcut.ctrl === undefined || shortcut.ctrl === event.ctrlKey) &&
+        (shortcut.shift === undefined || shortcut.shift === event.shiftKey) &&
+        (shortcut.alt === undefined || shortcut.alt === event.altKey) &&
+        (shortcut.meta === undefined || shortcut.meta === event.metaKey);
 
       if (matches) {
         if (shortcut.preventDefault !== false) {

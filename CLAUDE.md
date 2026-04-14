@@ -5,18 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev       # 启动 Vite 开发服务器
+npm install       # 安装依赖
+npm run dev       # 启动 Vite 开发服务器（热更新）
 npm run build     # TypeScript 编译 + Vite 构建到 dist 目录
 npm run preview   # 预览生产构建
-npm run lint      # ESLint 检查
+npm run lint      # ESLint 代码检查
 ```
 
 ### 开发流程
-1. `npm run dev` 启动开发服务器
-2. 打开 Chrome 访问 `chrome://extensions/`
-3. 开启"开发者模式"，点击"加载已解压的扩展程序"
-4. 选择 `dist` 文件夹
-5. 打开新标签页即可看到扩展
+1. `npm install` 安装依赖
+2. `npm run dev` 启动开发服务器
+3. 打开 Chrome 访问 `chrome://extensions/`
+4. 开启"开发者模式"，点击"加载已解压的扩展程序"
+5. 选择 `dist` 文件夹
+6. 打开新标签页即可看到扩展
+
+> **开发注意：** 修改代码后需要在扩展管理页面点击扩展卡片的 **刷新** 按钮，再重新打开新标签页查看效果。
 
 ## 架构概述
 
@@ -26,10 +30,19 @@ npm run lint      # ESLint 检查
 - 权限：`storage` (本地存储), `geolocation` (天气定位), `tabs`
 
 **数据流**
-- 所有数据通过 `chrome.storage` 持久化（sync 优先，超限自动降级到 local）
+- 所有数据通过 `chrome.storage` 持久化：优先使用 `sync` 跨设备同步，数据超过 90KB 时自动降级到 `local`（仅本地存储）
 - `src/utils/storage.ts` 封装 Chrome Storage API，提供完整的 CRUD 操作和异常处理
 - 存储键：`startme_data` (主数据), `startme_bg_image` (背景图片单独存储)
-- 数据结构：`Tab[]` → `Column[]` (4 列) → `Widget[]` (垂直堆叠) → 特定类型数据
+- 主数据结构：
+  ```typescript
+  {
+    tabs: Tab[],              // 标签页列表
+    activeTabId: string,      // 当前激活的标签页 ID
+    searchEngine: string,     // 默认搜索引擎 ID
+    searchEngines: SearchEngine[],  // 自定义搜索引擎列表
+  }
+  ```
+- 层级关系：`Tab[]` → `Column[]` (4 列) → `Widget[]` (垂直堆叠) → 特定类型数据
 
 **组件层次**
 ```
@@ -64,12 +77,12 @@ App.tsx (状态管理：tabs, activeTabId, bgImage, searchEngine)
 
 **外部 API**
 - 天气：Open-Meteo (免费，无需 API Key) - `https://api.open-meteo.com/v1/forecast`
-- RSS: rss2json.com 转换服务
+- RSS: rss2json.com 转换服务 - 免费版每月限 10000 次请求
 - 书签图标：Google Favicon 服务 - `https://www.google.com/s2/favicons`
 
 ## 小组件类型
 
-6 种小组件类型 (`WidgetType`):
+5 种小组件类型 (`WidgetType`):
 - `tasks` - 任务管理（待办清单）
 - `weather` - 天气信息（多城市，7 天预报）
 - `rss` - RSS 订阅源
@@ -87,9 +100,11 @@ App.tsx (状态管理：tabs, activeTabId, bgImage, searchEngine)
 
 - `useToast` - 消息提示管理（success/error/info/dismissToast）
 - `useKeyboardShortcuts` - 键盘快捷键处理
+- `useStorageCache` - 存储缓存优化 Hook
 
 ## 注意事项
 
 - 无测试框架 - 通过手动测试验证功能
 - 背景图片单独存储在 `startme_bg_image` 键，不包含在数据导出中
 - 路径别名 `@/*` 指向 `src/*`
+- **设计系统**：采用极简青绿色系，字体搭配 Lora (serif 标题) + Raleway (sans 正文)，遵循 anti-AI-slop 设计原则

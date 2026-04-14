@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Widget, Task } from '../../types';
 import { ChevronDown } from 'lucide-react';
 
@@ -16,7 +16,11 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
   const tasks: Task[] = widget.data.tasks || [];
 
   const handleAddTask = async () => {
-    if (!newTask.trim()) return;
+    console.log('handleAddTask 被调用, newTask:', newTask);
+    if (!newTask.trim()) {
+      console.log('任务为空，跳过');
+      return;
+    }
 
     const task: Task = {
       id: `task-${Date.now()}`,
@@ -25,8 +29,10 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
       createdAt: Date.now(),
     };
 
+    console.log('添加任务:', task);
     await onDataChange({ tasks: [...tasks, task] });
     setNewTask('');
+    console.log('任务已添加并清空输入');
   };
 
   const handleToggleTask = async (taskId: string) => {
@@ -84,9 +90,19 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
               placeholder="添加新任务..."
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                console.log('onKeyDown 触发, key:', e.key);
+                if (e.key === 'Enter') {
+                  console.log('检测到 Enter 键，调用 handleAddTask');
+                  e.preventDefault();
+                  handleAddTask();
+                }
+              }}
             />
-            <button onClick={handleAddTask}>添加</button>
+            <button onClick={() => {
+              console.log('添加按钮被点击');
+              handleAddTask();
+            }}>添加</button>
           </div>
           <ul className="task-list">
             {tasks.length === 0 ? (
@@ -120,4 +136,4 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
   );
 };
 
-export default TaskWidget;
+export default memo(TaskWidget);

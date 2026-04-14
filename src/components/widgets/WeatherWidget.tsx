@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Widget } from '../../types';
 import { ChevronDown, Plus, X } from 'lucide-react';
 
@@ -61,17 +61,27 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   const [showAddCity, setShowAddCity] = useState(false);
   const [newCity, setNewCity] = useState('');
 
-  useEffect(() => {
-    fetchWeather(activeCity);
-  }, [activeCity]);
+  // 使用 AbortController 处理请求超时和取消
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchWeather = async (city: string) => {
+  const fetchWeather = useCallback(async (city: string) => {
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
     try {
       const coords = CITY_COORDS[city] || { lat: 39.9042, lon: 116.4074 };
 
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7`;
 
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         throw new Error('天气 API 请求失败');
       }
@@ -91,7 +101,12 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
         city,
         forecast,
       });
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        // 请求被取消或超时，不处理
+        return;
+      }
       console.error('获取天气失败:', error);
       setWeather({
         city,
@@ -104,7 +119,18 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
         })),
       });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchWeather(activeCity);
+
+    return () => {
+      // 组件卸载时取消请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [activeCity, fetchWeather]);
 
   const handleAddCity = async () => {
     if (!newCity.trim()) return;
@@ -131,7 +157,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
   const renderWeatherIcon = (iconName: string, size: number = 24) => {
     const icons: Record<string, React.ReactNode> = {
-      'sun': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
+      'sun': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.4141"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
       'cloud-sun': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.657a4 4 0 1 1-5.89-3.78l.208-.125a3.5 3.5 0 0 1 5.047 4.15l-.2.125a4.002 4.002 0 0 1-1.165 6.973"/><path d="M12 20v2"/><path d="m6.34 17.66-1.41 1.41"/><path d="M2 12h2"/></svg>,
       'cloud-drizzle': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 19v2"/><path d="M8 13v2"/><path d="M16 19v2"/><path d="M16 13v2"/><path d="M12 21v2"/><path d="M12 15v2"/></svg>,
       'cloud-rain': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>,
@@ -191,7 +217,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
                 placeholder="城市名称（如：北京）"
                 value={newCity}
                 onChange={(e) => setNewCity(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddCity()}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCity()}
                 autoFocus
                 onBlur={() => !newCity && setShowAddCity(false)}
               />

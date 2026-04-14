@@ -11,6 +11,12 @@
     "geolocation",
     "tabs"
   ],
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://api.rss2json.com/*",
+    "https://favicon.yandex.net/*",
+    "https://www.google.com/s2/*"
+  ],
   "icons": {
     "16": "icons/icon16.svg",
     "48": "icons/icon48.svg",

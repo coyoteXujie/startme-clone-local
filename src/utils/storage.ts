@@ -3,9 +3,9 @@
  * 封装 Chrome Storage API，提供数据持久化功能
  *
  * 存储策略：
- * - 优先使用 chrome.storage.sync（支持跨设备同步）
- * - 数据超过 90KB 时自动切换到 chrome.storage.local
- * - 背景图片单独存储在 local 中（避免占用同步配额）
+ * - 统一使用 chrome.storage.local 存储
+ * - 原因：chrome.storage.sync 有严格配额限制（每项约 8KB），容易导致 quota exceeded 错误
+ * - 背景图片单独存储在 local 中
  */
 
 import { Tab, Widget, Task, SearchEngine, Column } from '../types';
@@ -86,21 +86,8 @@ export const storage = {
    * - 迁移背景图片到单独存储
    */
   migrateData(data: any): StorageData {
-    // 为书签重新生成图标 URL（使用网站自身的 favicon.ico）
+    // 不再自动生成图标，统一由组件层处理加载和保存
     const addIconsToLinks = (widget: any) => {
-      if (widget.type === 'links' && widget.data?.links) {
-        const updatedLinks = widget.data.links.map((link: any) => {
-          // 强制重新生成图标 URL，覆盖旧的错误图标
-          try {
-            const domain = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`).hostname;
-            link.icon = `https://${domain}/favicon.ico`;
-          } catch {
-            // URL 解析失败，不设置 icon，让组件层处理
-          }
-          return link;
-        });
-        return { ...widget, data: { ...widget.data, links: updatedLinks } };
-      }
       return widget;
     };
 
@@ -110,13 +97,28 @@ export const storage = {
 
       // 为所有书签补充 icon 字段
       processedData.tabs = data.tabs.map((tab: any) => {
-        const updatedTab = { ...tab };
-        updatedTab.columns = tab.columns.map((col: any) => {
-          const updatedCol = { ...col };
-          updatedCol.widgets = col.widgets.map(addIconsToLinks);
-          return updatedCol;
+        let tabHasChanges = false;
+        const updatedColumns = tab.columns.map((col: any) => {
+          let colHasChanges = false;
+          const updatedWidgets = col.widgets.map((widget: any) => {
+            const newWidget = addIconsToLinks(widget);
+            if (newWidget !== widget) {
+              colHasChanges = true;
+            }
+            return newWidget;
+          });
+
+          if (colHasChanges) {
+            tabHasChanges = true;
+            return { ...col, widgets: updatedWidgets };
+          }
+          return col;
         });
-        return updatedTab;
+
+        if (tabHasChanges) {
+          return { ...tab, columns: updatedColumns };
+        }
+        return tab;
       });
 
       // 迁移旧数据中的背景图片到单独存储
@@ -185,19 +187,22 @@ export const storage = {
           const migrated = this.migrateData(result[STORAGE_KEY]);
           // 如果是旧格式，保存新格式
           if (!result[STORAGE_KEY].tabs?.[0]?.columns) {
-            this.saveData(migrated);
+            // 异步保存，不阻塞返回
+            this.saveData(migrated).catch(err => console.warn('保存迁移数据失败:', err));
           } else {
+            // 不再自动更新图标，避免无限循环
             // 新格式数据，检查是否有书签缺少 icon，有则保存
-            const needsIconUpdate = migrated.tabs.some((tab: any) =>
-              tab.columns.some((col: any) =>
-                col.widgets.some((w: any) =>
-                  w.type === 'links' && w.data?.links?.some((l: any) => !l.icon || l.icon.trim() === '')
-                )
-              )
-            );
-            if (needsIconUpdate) {
-              this.saveData(migrated);
-            }
+            // const needsIconUpdate = migrated.tabs.some((tab: any) =>
+            //   tab.columns.some((col: any) =>
+            //     col.widgets.some((w: any) =>
+            //       w.type === 'links' && w.data?.links?.some((l: any) => ! !l.icon || l.icon.trim() === '')
+            //     )
+            //   )
+            // );
+            // if (needsIconUpdate) {
+            //   // 异步保存，不阻塞返回
+            //   this.saveData(migrated).catch(err => console.warn('保存图标更新失败:', err));
+            // }
           }
           resolve(migrated);
         } else {
@@ -228,17 +233,18 @@ export const storage = {
       chrome.storage.local.get([STORAGE_KEY], (result) => {
         if (result[STORAGE_KEY]) {
           const migrated = this.migrateData(result[STORAGE_KEY]);
+          // 不再自动更新图标，避免无限循环
           // 检查是否有书签缺少 icon，有则保存
-          const needsIconUpdate = migrated.tabs.some((tab: any) =>
-            tab.columns.some((col: any) =>
-              col.widgets.some((w: any) =>
-                w.type === 'links' && w.data?.links?.some((l: any) => !l.icon || l.icon.trim() === '')
-              )
-            )
-          );
-          if (needsIconUpdate) {
-            this.saveData(migrated);
-          }
+          // const needsIconUpdate = migrated.tabs.some((tab: any) =>
+          //   tab.columns.some((col: any) =>
+          //     col.widgets.some((w: any) =>
+          //       w.type === 'links' && w.data?.links?.some((l: any) => ! !l.icon || l.icon.trim() === '')
+          //     )
+          //   )
+          // );
+          // if (needsIconUpdate) {
+          //   this.saveData(migrated);
+          // }
           resolve(migrated);
         } else {
           resolve({
@@ -267,27 +273,21 @@ export const storage = {
 
   /**
    * 保存数据
-   * 自动检测数据大小，超过 90KB 时使用 local 存储
+   * Chrome Storage API sync 有严格的配额限制：
+   * - 单个项目限制约 100KB
+   * - 单个数据项限制约 8KB
+   *
+   * 为了避免 quota exceeded 错误，我们统一使用 storage.local
    */
   async saveData(data: StorageData): Promise<void> {
     return new Promise((resolve) => {
-      const dataSize = JSON.stringify(data).length;
-
-      // 数据过大时使用 local 存储
-      if (dataSize > 90 * 1024) {
-        console.warn('数据超过 sync 限制（90KB），使用 local 存储');
-        chrome.storage.local.set({ [STORAGE_KEY]: data }, resolve);
-      } else {
-        chrome.storage.sync.set({ [STORAGE_KEY]: data }, () => {
-          if (chrome.runtime.lastError) {
-            // sync 失败降级到 local
-            console.warn('storage.sync 失败，使用 storage.local', chrome.runtime.lastError.message);
-            chrome.storage.local.set({ [STORAGE_KEY]: data }, resolve);
-          } else {
-            resolve();
-          }
-        });
-      }
+      // 统一使用 local 存储，避免 sync 的配额限制问题
+      chrome.storage.local.set({ [STORAGE_KEY]: data }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('保存数据失败:', chrome.runtime.lastError.message);
+        }
+        resolve();
+      });
     });
   },
 
@@ -303,8 +303,18 @@ export const storage = {
    * 保存标签页列表
    */
   async saveTabs(tabs: Tab[]): Promise<void> {
+    // 创建新的 tabs 数组以确保 React 检测到变化
+    const newTabs = tabs.map((tab) => ({
+      ...tab,
+      columns: tab.columns.map((col) => ({
+        ...col,
+        widgets: col.widgets.map((widget) => ({ ...widget })),
+      })),
+    }));
+    console.log('保存标签页列表:', newTabs.map((t) => ({ id: t.id, name: t.name, widgetCount: t.columns.reduce((sum, col) => sum + col.widgets.length, 0) })));
     const data = await this.getData();
-    await this.saveData({ ...data, tabs });
+    await this.saveData({ ...data, tabs: newTabs });
+    console.log('保存标签页列表完成');
   },
 
   /**
@@ -389,9 +399,12 @@ export const storage = {
     }
 
     for (const col of tab.columns) {
-      const widget = col.widgets.find((w) => w.id === widgetId);
-      if (widget) {
-        widget.data = data;
+      const widgetIndex = col.widgets.findIndex((w) => w.id === widgetId);
+      if (widgetIndex !== -1) {
+        // 创建新的 widget 对象以确保 React 检测到变化
+        const updatedWidget = { ...col.widgets[widgetIndex], data };
+        col.widgets[widgetIndex] = updatedWidget;
+        console.log('保存小组件数据:', { widgetId, data });
         await this.saveTabs(tabs);
         return;
       }
@@ -508,13 +521,15 @@ export const storage = {
       const targetColumn = tab.columns.find((c) => c.id === targetColumnId);
       if (targetColumn) {
         // 确保索引不越界
-        const safeIndex = Math.min(targetIndex, targetColumn.widgets.length);
+        const safeIndex = Math.max(0, Math.min(targetIndex, targetColumn.widgets.length));
         targetColumn.widgets.splice(safeIndex, 0, widget);
         await this.saveTabs(tabs);
       } else {
-        // 目标列不存在，放回原列
-        console.warn(`移动小组件失败：未找到目标列 ${targetColumnId}`);
-        sourceColumn.widgets.splice(widgetIndex, 0, widget);
+        // 目标列不存在，放回原列（在原来位置插入）
+        console.warn(`移动小组件失败：未找到目标列 ${targetColumnId}，已放回原位`);
+        const safeInsertIndex = Math.min(widgetIndex, sourceColumn.widgets.length);
+        sourceColumn.widgets.splice(safeInsertIndex, 0, widget);
+        await this.saveTabs(tabs);
       }
     } else {
       console.warn(`移动小组件失败：未找到小组件 ${widgetId}`);

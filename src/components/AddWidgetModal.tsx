@@ -20,7 +20,7 @@ const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onSelect, onClose }) =>
   };
 
   return (
-    <div className="modal-overlay" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal modal-add-widget" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>添加小组件</h3>

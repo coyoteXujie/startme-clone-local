@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tab, Widget, DragData, SearchEngine } from './types';
+import { Tab, Widget, DragData, SearchEngine, Column } from './types';
 import { storage } from './utils/storage';
 import { useToast } from './hooks/useToast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -107,8 +107,9 @@ const App: React.FC = () => {
       key: 'f',
       ctrl: true,
       action: () => {
-        setShowFocusMode(prev => !prev);
-        info(showFocusMode ? '已退出专注模式' : '已进入专注模式');
+        const newState = !showFocusMode;
+        setShowFocusMode(newState);
+        info(newState ? '已进入专注模式' : '已退出专注模式');
       },
     },
   ]);
@@ -178,10 +179,16 @@ const App: React.FC = () => {
       createdAt: Date.now(),
     };
 
-    await storage.addTab(newTab);
-    await loadData();
+    // 本地先更新
+    setTabs([...tabs, newTab]);
     setActiveTabId(newTab.id);
     success(`已创建标签页 "${name}"`);
+
+    // 异步保存
+    storage.addTab(newTab).catch(err => {
+      console.error('保存标签页失败:', err);
+      loadData();
+    });
   };
 
   const handleDeleteTab = async (tabId: string, e: React.MouseEvent) => {
@@ -191,9 +198,19 @@ const App: React.FC = () => {
       return;
     }
     if (confirm('确定要删除这个标签页吗？')) {
-      await storage.deleteTab(tabId);
-      await loadData();
+      // 本地先更新
+      const newTabs = tabs.filter(t => t.id !== tabId);
+      setTabs(newTabs);
+      if (activeTabId === tabId) {
+        setActiveTabId(newTabs[0].id);
+      }
       success('标签页已删除');
+
+      // 异步保存
+      storage.deleteTab(tabId).catch(err => {
+        console.error('删除标签页失败:', err);
+        loadData();
+      });
     }
   };
 
@@ -304,10 +321,30 @@ const App: React.FC = () => {
       url: url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`,
     };
 
-    await storage.updateWidget(activeTabId, widget.id, {
+    // 先更新本地 state，让 UI 立即响应
+    const updatedTabs = tabs.map((tab) => {
+      if (tab.id !== activeTabId) return tab;
+      return {
+        ...tab,
+        columns: tab.columns.map((col) => ({
+          ...col,
+          widgets: col.widgets.map((w) => {
+            if (w.id !== widgetId) return w;
+            return {
+              ...w,
+              data: { ...w.data, links: [...(w.data.links || []), newLink] },
+            };
+          }),
+        })),
+      };
+    });
+    setTabs(updatedTabs);
+
+    // 异步保存到 storage
+    await storage.updateWidget(activeTabId, widgetId, {
       data: { ...widget.data, links: [...links, newLink] },
     });
-    await loadData();
+    console.log('书签已保存:', newLink);
     success('书签已添加');
   };
 
@@ -379,10 +416,60 @@ const App: React.FC = () => {
     setDragOverColumn(null);
     setDragOverIndex(null);
 
-    if (draggedWidget) {
-      await storage.moveWidget(draggedWidget.tabId, draggedWidget.widgetId, targetColumnId, targetIndex);
-      await loadData();
+    if (draggedWidget && activeTab) {
+      // 先在本地更新状态，避免全量重加载
+      const newTabs = tabs.map(tab => {
+        if (tab.id !== draggedWidget.tabId) return tab;
+
+        // 找到源列和小组件
+        let sourceColumn: Column | undefined;
+        let widgetIndex = -1;
+        let widget: Widget | undefined;
+
+        for (const col of tab.columns) {
+          const idx = col.widgets.findIndex(w => w.id === draggedWidget.widgetId);
+          if (idx !== -1) {
+            sourceColumn = col;
+            widgetIndex = idx;
+            widget = col.widgets[idx];
+            break;
+          }
+        }
+
+        if (!sourceColumn || !widget) return tab;
+
+        // 从源列移除
+        const newSourceColumn = {
+          ...sourceColumn,
+          widgets: sourceColumn.widgets.filter((_: Widget, idx: number) => idx !== widgetIndex)
+        };
+
+        // 插入到目标列
+        return {
+          ...tab,
+          columns: tab.columns.map(col => {
+            if (col.id === sourceColumn?.id) return newSourceColumn;
+            if (col.id === targetColumnId) {
+              const safeIndex = Math.max(0, Math.min(targetIndex, col.widgets.length));
+              const newWidgets = [...col.widgets];
+              newWidgets.splice(safeIndex, 0, widget!);
+              return { ...col, widgets: newWidgets };
+            }
+            return col;
+          })
+        };
+      });
+
+      // 更新本地状态
+      setTabs(newTabs);
       setDraggedWidget(null);
+
+      // 异步保存到存储，不阻塞UI
+      storage.moveWidget(draggedWidget.tabId, draggedWidget.widgetId, targetColumnId, targetIndex).catch(err => {
+        console.error('保存拖拽位置失败:', err);
+        // 如果保存失败，重新加载数据恢复正确状态
+        loadData();
+      });
     }
   };
 
@@ -394,11 +481,30 @@ const App: React.FC = () => {
 
   const handleToggleWidgetCollapsed = async (widgetId: string) => {
     if (activeTab) {
-      const widget = activeTab.columns.flatMap((c) => c.widgets).find((w) => w.id === widgetId);
-      if (widget) {
-        await storage.updateWidget(activeTabId, widgetId, { collapsed: !widget.collapsed });
-        await loadData();
-      }
+      // 本地先更新状态
+      const newTabs = tabs.map(tab => {
+        if (tab.id !== activeTabId) return tab;
+        return {
+          ...tab,
+          columns: tab.columns.map(col => ({
+            ...col,
+            widgets: col.widgets.map(widget => {
+              if (widget.id === widgetId) {
+                return { ...widget, collapsed: !widget.collapsed };
+              }
+              return widget;
+            })
+          }))
+        };
+      });
+
+      setTabs(newTabs);
+
+      // 异步保存
+      storage.updateWidget(activeTabId, widgetId, { collapsed: !newTabs.find(t => t.id === activeTabId)?.columns.flatMap(c => c.widgets).find(w => w.id === widgetId)?.collapsed }).catch(err => {
+        console.error('保存折叠状态失败:', err);
+        loadData();
+      });
     }
   };
 
@@ -518,7 +624,16 @@ const App: React.FC = () => {
     if (!searchQuery.trim()) return;
 
     const engine = searchEngines.find((e) => e.id === searchEngine);
-    const url = engine?.url || 'https://www.baidu.com/s?wd=';
+    let url = engine?.url || 'https://www.baidu.com/s?wd=';
+
+    // 确保 URL 以 = 结尾，或者包含查询参数
+    if (!url.includes('=')) {
+      url += '?q=';
+    } else if (!url.endsWith('=') && !url.includes('&')) {
+      // 如果 URL 包含 = 但不是最后一个字符，可能需要添加查询参数
+      url += '&q=';
+    }
+
     window.open(url + encodeURIComponent(searchQuery), '_blank');
     setSearchQuery('');
   };
@@ -555,14 +670,30 @@ const App: React.FC = () => {
     }
   };
 
-  const renderWidget = (widget: Widget, columnId: string, _widgetIndex: number) => {
+  const renderWidget = (widget: Widget, columnId: string) => {
+    // 捕获当前标签页ID，异步回调时不会因为用户切换标签页而改变
+    const currentTabId = activeTabId;
     const props = {
       widget,
-      tabId: activeTabId,
+      tabId: currentTabId,
       columnId,
       onDataChange: async (data: any) => {
-        await storage.saveWidgetData(activeTabId, widget.id, data);
-        await loadData();
+        await storage.saveWidgetData(currentTabId, widget.id, data);
+        // 直接更新state，UI立即响应，不需要重新加载全部数据
+        setTabs(prevTabs => prevTabs.map(tab => {
+          if (tab.id === currentTabId) {
+            return {
+              ...tab,
+              columns: tab.columns.map(col => ({
+                ...col,
+                widgets: col.widgets.map(w =>
+                  w.id === widget.id ? { ...w, data } : w
+                )
+              }))
+            };
+          }
+          return tab;
+        }));
       },
       onDelete: () => handleDeleteWidget(widget.id),
       onToggleCollapsed: () => handleToggleWidgetCollapsed(widget.id),
@@ -623,7 +754,7 @@ const App: React.FC = () => {
               className="engine-select-btn"
               onClick={() => setShowEngineSelect(!showEngineSelect)}
             >
-              {searchEngines.find((e) => e.id === searchEngine)?.icon}
+              {searchEngines.find((e) => e.id === searchEngine)?.icon || SEARCH_ENGINE_ICONS.baidu}
             </button>
             {showEngineSelect && (
               <div className="engine-dropdown-menu">
@@ -859,7 +990,7 @@ const App: React.FC = () => {
                           <X size={14} />
                         </button>
                       )}
-                      {renderWidget(widget, column.id, widgetIndex)}
+                      {renderWidget(widget, column.id)}
                     </div>
                   ))}
                 </div>
