@@ -503,32 +503,50 @@ export const storage = {
     // 找到源列和小组件
     let sourceColumn: Column | undefined;
     let widgetIndex = -1;
+    let widget: Widget | undefined;
 
     for (const col of tab.columns) {
       const idx = col.widgets.findIndex((w) => w.id === widgetId);
       if (idx !== -1) {
         sourceColumn = col;
         widgetIndex = idx;
+        widget = col.widgets[idx];
         break;
       }
     }
 
-    if (sourceColumn && widgetIndex !== -1) {
+    if (sourceColumn && widgetIndex !== -1 && widget) {
+      // 如果是同一个列内移动
+      if (sourceColumn.id === targetColumnId) {
+        const newWidgets = [...sourceColumn.widgets];
+        // 先移除原来的位置
+        newWidgets.splice(widgetIndex, 1);
+        // 计算正确的目标索引（因为移除了一个元素，如果目标索引大于原来的索引，需要减1）
+        const adjustedIndex = targetIndex > widgetIndex ? targetIndex - 1 : targetIndex;
+        const safeIndex = Math.max(0, Math.min(adjustedIndex, newWidgets.length));
+        // 插入到新位置
+        newWidgets.splice(safeIndex, 0, widget);
+        sourceColumn.widgets = newWidgets;
+        await this.saveTabs(tabs);
+        return;
+      }
+
+      // 不同列之间移动
       // 从源列移除
-      const [widget] = sourceColumn.widgets.splice(widgetIndex, 1);
+      const [removedWidget] = sourceColumn.widgets.splice(widgetIndex, 1);
 
       // 找到目标列并插入
       const targetColumn = tab.columns.find((c) => c.id === targetColumnId);
       if (targetColumn) {
         // 确保索引不越界
         const safeIndex = Math.max(0, Math.min(targetIndex, targetColumn.widgets.length));
-        targetColumn.widgets.splice(safeIndex, 0, widget);
+        targetColumn.widgets.splice(safeIndex, 0, removedWidget);
         await this.saveTabs(tabs);
       } else {
         // 目标列不存在，放回原列（在原来位置插入）
         console.warn(`移动小组件失败：未找到目标列 ${targetColumnId}，已放回原位`);
         const safeInsertIndex = Math.min(widgetIndex, sourceColumn.widgets.length);
-        sourceColumn.widgets.splice(safeInsertIndex, 0, widget);
+        sourceColumn.widgets.splice(safeInsertIndex, 0, removedWidget);
         await this.saveTabs(tabs);
       }
     } else {

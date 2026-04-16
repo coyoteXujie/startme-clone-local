@@ -438,6 +438,29 @@ const App: React.FC = () => {
 
         if (!sourceColumn || !widget) return tab;
 
+        // 如果是同一个列内移动
+        if (sourceColumn.id === targetColumnId) {
+          const newWidgets = [...sourceColumn.widgets];
+          // 先移除原来的位置
+          newWidgets.splice(widgetIndex, 1);
+          // 计算正确的目标索引（因为移除了一个元素，如果目标索引大于原来的索引，需要减1）
+          const adjustedIndex = targetIndex > widgetIndex ? targetIndex - 1 : targetIndex;
+          const safeIndex = Math.max(0, Math.min(adjustedIndex, newWidgets.length));
+          // 插入到新位置
+          newWidgets.splice(safeIndex, 0, widget);
+
+          return {
+            ...tab,
+            columns: tab.columns.map(col => {
+              if (col.id === sourceColumn?.id) {
+                return { ...col, widgets: newWidgets };
+              }
+              return col;
+            })
+          };
+        }
+
+        // 不同列之间移动
         // 从源列移除
         const newSourceColumn = {
           ...sourceColumn,

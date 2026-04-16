@@ -1,6 +1,6 @@
 import React, { useState, memo } from 'react';
 import { Widget, Task } from '../../types';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Edit, Check, X } from 'lucide-react';
 
 interface TaskWidgetProps {
   widget: Widget;
@@ -13,6 +13,8 @@ interface TaskWidgetProps {
 
 const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [newTask, setNewTask] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
   const tasks: Task[] = widget.data.tasks || [];
 
   const handleAddTask = async () => {
@@ -51,6 +53,33 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
   const handleDeleteTask = async (taskId: string) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId);
     await onDataChange({ tasks: updatedTasks });
+  };
+
+  const handleStartEdit = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingText(task.title);
+  };
+
+  const handleSaveEdit = async (taskId: string) => {
+    if (!editingText.trim()) {
+      return;
+    }
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId
+        ? {
+            ...task,
+            title: editingText.trim(),
+          }
+        : task
+    );
+    await onDataChange({ tasks: updatedTasks });
+    setEditingTaskId(null);
+    setEditingText('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+    setEditingText('');
   };
 
   const formatTime = (timestamp: number) => {
@@ -118,14 +147,68 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
                     checked={task.completed}
                     onChange={() => handleToggleTask(task.id)}
                   />
-                  <span>{task.title}</span>
-                  <span className="task-time">{formatTime(task.createdAt)}</span>
-                  <button
-                    className="task-delete"
-                    onClick={() => handleDeleteTask(task.id)}
-                  >
-                    ×
-                  </button>
+                  {editingTaskId === task.id ? (
+                    <>
+                      <div className="task-edit-container">
+                        <input
+                          type="text"
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                            if (e.key === 'Enter') {
+                              handleSaveEdit(task.id);
+                            } else if (e.key === 'Escape') {
+                              handleCancelEdit();
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="task-actions">
+                        <button
+                          className="task-edit-btn task-save"
+                          onClick={() => handleSaveEdit(task.id)}
+                          title="保存"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          className="task-edit-btn task-cancel"
+                          onClick={handleCancelEdit}
+                          title="取消"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className="task-title"
+                        onDoubleClick={() => handleStartEdit(task)}
+                        title={task.title}
+                      >
+                        {task.title}
+                      </span>
+                      <span className="task-time">{formatTime(task.createdAt)}</span>
+                      <div className="task-actions">
+                        <button
+                          className="task-edit-btn task-edit"
+                          onClick={() => handleStartEdit(task)}
+                          title="编辑任务"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          className="task-delete"
+                          onClick={() => handleDeleteTask(task.id)}
+                          title="删除任务"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))
             )}
