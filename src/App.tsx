@@ -11,31 +11,21 @@ import LinksWidget from './components/widgets/LinksWidget';
 import PomodoroWidget from './components/widgets/PomodoroWidget';
 import AddWidgetModal from './components/AddWidgetModal';
 import ToastContainer from './components/ToastContainer';
-import { Search, Settings, Image, X, Plus, MoreVertical, Trash2, GripVertical, Download, Upload, Globe, Compass, Square, Circle } from 'lucide-react';
+import { Search, Setting, Pic, Close, Plus, MenuFold, Delete, Drag, Download, Upload, Globe, Compass, FindOne } from '@icon-park/react';
 import defaultBg from './assets/background.jpg';
 
 // 搜索引擎图标映射
 const SEARCH_ENGINE_ICONS: Record<string, React.ReactNode> = {
-  baidu: (
-    <div style={{ position: 'relative', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Circle size={18} fill="#2932e1" color="#2932e1" />
-      <span style={{ position: 'absolute', fontSize: '10px', fontWeight: 'bold', color: 'white' }}>百</span>
-    </div>
-  ),
-  bing: (
-    <div style={{ position: 'relative', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Square size={18} fill="#00809d" color="#00809d" />
-      <span style={{ position: 'absolute', fontSize: '10px', fontWeight: 'bold', color: 'white' }}>B</span>
-    </div>
-  ),
-  google: <Globe size={18} color="#4285f4" />,
-  sogou: <Compass size={18} color="#ff6600" />,
+  baidu: <Search size={18} colors={['#2932e1', '#ffffff']} />,
+  bing: <FindOne size={18} colors={['#00809d', '#ffffff']} />,
+  google: <Globe size={18} colors={['#4285f4', '#34a853', '#fbbc05', '#ea4335']} />,
+  sogou: <Compass size={18} colors={['#ff6600', '#ff9933']} />,
 };
 
 // 为搜索引擎添加图标
-const withIcon = (engine: any): SearchEngine => ({
+const withIcon = (engine: SearchEngine): SearchEngine => ({
   ...engine,
-  icon: SEARCH_ENGINE_ICONS[engine.id] || <Compass size={18} color="#667eea" />,
+  icon: SEARCH_ENGINE_ICONS[engine.id] || <Compass size={18} colors={['#667eea', '#764ba2']} />,
 });
 
 const App: React.FC = () => {
@@ -344,7 +334,6 @@ const App: React.FC = () => {
     await storage.updateWidget(activeTabId, widgetId, {
       data: { ...widget.data, links: [...links, newLink] },
     });
-    console.log('书签已保存:', newLink);
     success('书签已添加');
   };
 
@@ -802,7 +791,7 @@ const App: React.FC = () => {
                     setShowEngineSettings(true);
                   }}
                 >
-                  <Settings className="engine-icon" size={18} />
+                  <Setting className="engine-icon" size={18} colors={['currentColor', 'currentColor']} />
                   <span className="engine-name">搜索设置</span>
                 </button>
               </div>
@@ -817,7 +806,7 @@ const App: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <button type="submit" className="search-icon-btn">
-            <Search size={18} />
+            <Search size={18} colors={['currentColor', 'currentColor']} />
           </button>
         </form>
       </div>
@@ -850,10 +839,10 @@ const App: React.FC = () => {
                 <div className="engine-list">
                   {searchEngines.map((engine) => (
                     <div key={engine.id} className="engine-list-item">
-                      <span className="engine-drag-icon"><GripVertical size={16} /></span>
+                      <span className="engine-drag-icon"><Drag size={16} /></span>
                       <span className="engine-name">{engine.name}</span>
                       <button className="engine-delete-btn" onClick={() => handleDeleteEngine(engine.id)}>
-                        <Trash2 size={16} />
+                        <Delete size={16} />
                       </button>
                     </div>
                   ))}
@@ -899,8 +888,8 @@ const App: React.FC = () => {
             className="menu-toggle-btn"
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
           >
-            <MoreVertical size={18} />
-            <span>菜单</span>
+            <MenuFold size={22} />
+            <span className="menu-btn-text">菜单</span>
           </button>
           {showHeaderMenu && (
             <div className="header-menu">
@@ -911,7 +900,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Image className="header-menu-icon" size={18} />
+                <Pic className="header-menu-icon" size={18} colors={['#667eea', '#764ba2']} />
                 <span>选择本地图片</span>
               </button>
               <button
@@ -922,7 +911,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Globe className="header-menu-icon" size={18} />
+                <Globe className="header-menu-icon" size={18} colors={['#667eea', '#764ba2']} />
                 <span>输入图片 URL</span>
               </button>
               {bgImage && (
@@ -933,7 +922,7 @@ const App: React.FC = () => {
                     setShowHeaderMenu(false);
                   }}
                 >
-                <X className="header-menu-icon" size={18} />
+                <Close className="header-menu-icon" size={18} colors={['#ef4444', '#f87171']} />
                   <span>清除背景</span>
                 </button>
               )}
@@ -945,7 +934,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Download className="header-menu-icon" size={18} />
+                <Download className="header-menu-icon" size={18} colors={['currentColor', 'currentColor']} />
                 <span>导出备份数据</span>
               </button>
               <button
@@ -955,7 +944,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Upload className="header-menu-icon" size={18} />
+                <Upload className="header-menu-icon" size={18} colors={['currentColor', 'currentColor']} />
                 <span>导入备份数据</span>
               </button>
               <div className="header-menu-divider"></div>
@@ -966,7 +955,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Plus className="header-menu-icon" size={18} />
+                <Plus className="header-menu-icon" size={18} colors={['currentColor', 'currentColor']} />
                 <span>添加小组件</span>
               </button>
             </div>
@@ -1010,7 +999,7 @@ const App: React.FC = () => {
                     >
                       {!widget.collapsed && (
                         <button className="widget-delete-btn" onClick={() => handleDeleteWidget(widget.id)}>
-                          <X size={14} />
+                          <Close size={14} />
                         </button>
                       )}
                       {renderWidget(widget, column.id)}
@@ -1050,65 +1039,21 @@ const App: React.FC = () => {
       {/* 链接书签全局弹窗 - 渲染在 App 层级避免堆叠上下文问题 */}
       {showLinkModal && (
         <div
+          className="link-modal-overlay"
           onClick={() => {
             setShowLinkModal(false);
             setEditingLink(null);
             setNewLinkName('');
             setNewLinkUrl('');
           }}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
         >
           <div
+            className="link-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#ffffff',
-              borderRadius: '20px',
-              minWidth: '420px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-              animation: 'scaleIn 0.25s ease-out',
-              overflow: 'hidden',
-            }}
           >
-            <div className="modal-header" style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '20px 24px',
-              borderBottom: '1px solid var(--color-gray-200)',
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
-            }}>
-              <h3 style={{
-                margin: 0,
-                fontSize: 'var(--text-lg)',
-                fontWeight: 'var(--font-semibold)',
-                color: 'var(--color-gray-800)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}>
-                <span style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  background: 'var(--primary-gradient)',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'white',
-                }}>
+            <div className="link-modal-header">
+              <h3 className="link-modal-title">
+                <span className="link-modal-title-icon">
                   🔖
                 </span>
                 {editingLink?.isEdit ? '编辑书签' : '添加书签'}
@@ -1121,51 +1066,13 @@ const App: React.FC = () => {
                   setNewLinkName('');
                   setNewLinkUrl('');
                 }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '20px',
-                  color: 'var(--color-gray-400)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 'var(--radius-full)',
-                  transition: 'all var(--transition-fast)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--color-gray-100)';
-                  e.currentTarget.style.color = 'var(--color-gray-600)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'none';
-                  e.currentTarget.style.color = 'var(--color-gray-400)';
-                }}
               >
-                <X size={20} />
+                <Close size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ padding: '24px' }}>
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--font-semibold)',
-                  color: 'var(--color-gray-700)',
-                  marginBottom: '8px',
-                }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px',
-                  }}>
-                    <span style={{ fontSize: '16px' }}>📛</span> 书签名称
-                  </span>
-                </label>
+            <div className="link-modal-body">
+              <div className="form-group">
+                <label>📛 书签名称</label>
                 <input
                   type="text"
                   placeholder="例如：百度、GitHub、知乎"
@@ -1173,47 +1080,10 @@ const App: React.FC = () => {
                   onChange={(e) => setNewLinkName(e.target.value)}
                   className="form-input"
                   autoFocus
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1.5px solid var(--color-gray-200)',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: 'var(--text-base)',
-                    background: 'var(--color-gray-50)',
-                    color: 'var(--color-gray-800)',
-                    outline: 'none',
-                    transition: 'all var(--transition-fast)',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-primary)';
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-gray-200)';
-                    e.currentTarget.style.background = 'var(--color-gray-50)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
                 />
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--font-semibold)',
-                  color: 'var(--color-gray-700)',
-                  marginBottom: '8px',
-                }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px',
-                  }}>
-                    <span style={{ fontSize: '16px' }}>🔗</span> 网址链接
-                  </span>
-                </label>
+              <div className="form-group form-group-last">
+                <label>🔗 网址链接</label>
                 <input
                   type="text"
                   placeholder="例如：baidu.com 或 https://github.com"
@@ -1221,51 +1091,15 @@ const App: React.FC = () => {
                   onChange={(e) => setNewLinkUrl(e.target.value)}
                   className="form-input"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSaveLink();
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1.5px solid var(--color-gray-200)',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: 'var(--text-base)',
-                    background: 'var(--color-gray-50)',
-                    color: 'var(--color-gray-800)',
-                    outline: 'none',
-                    transition: 'all var(--transition-fast)',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-primary)';
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-gray-200)';
-                    e.currentTarget.style.background = 'var(--color-gray-50)';
-                    e.currentTarget.style.boxShadow = 'none';
+                    if (e.key === 'Enter') handleSaveLink();
                   }}
                 />
               </div>
-              <p style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-gray-500)',
-                marginTop: '12px',
-                fontStyle: 'italic',
-              }}>
+              <p className="link-modal-hint">
                 💡 提示：可直接输入域名，无需 https:// 前缀
               </p>
             </div>
-            <div className="modal-footer" style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              padding: '16px 24px',
-              borderTop: '1px solid var(--color-gray-200)',
-              background: 'var(--color-gray-50)',
-            }}>
+            <div className="link-modal-footer">
               <button
                 className="btn-cancel"
                 onClick={() => {
@@ -1274,51 +1108,12 @@ const App: React.FC = () => {
                   setNewLinkName('');
                   setNewLinkUrl('');
                 }}
-                style={{
-                  padding: '10px 24px',
-                  background: 'var(--color-gray-100)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'var(--color-gray-600)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--font-medium)',
-                  transition: 'all var(--transition-fast)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--color-gray-200)';
-                  e.currentTarget.style.color = 'var(--color-gray-800)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--color-gray-100)';
-                  e.currentTarget.style.color = 'var(--color-gray-600)';
-                }}
               >
                 取消
               </button>
               <button
                 className="btn-confirm"
                 onClick={handleSaveLink}
-                style={{
-                  padding: '10px 28px',
-                  background: 'var(--primary-gradient)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--font-semibold)',
-                  transition: 'all var(--transition-fast)',
-                  boxShadow: 'var(--shadow-primary)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-primary), var(--glow-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-primary)';
-                }}
               >
                 {editingLink?.isEdit ? '💾 保存' : '➕ 添加'}
               </button>

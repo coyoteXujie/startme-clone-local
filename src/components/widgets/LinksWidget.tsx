@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import { Widget, LinkItem } from '../../types';
-import { ChevronDown, Edit2, Plus, X, Grid, Cloud } from 'lucide-react';
+import { Down, Edit, Plus, Close } from '@icon-park/react';
+import { Cloud, LayoutGrid } from 'lucide-react';
 
-// NodeJS.Timeout 类型别名
 type Timeout = ReturnType<typeof setTimeout>;
 
 interface LinksWidgetProps {
@@ -21,17 +21,12 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // 直接使用 widget.data，不使用本地 state
   const links = widget.data.links || [];
   const viewMode = widget.data.viewMode || 'grid';
-  // failedIcons只保存在本地状态，不持久化避免循环
-  const [failedIcons, setFailedIcons] = useState<Set<string>>(new Set());
-  // 记录正在检测的图片，用于超时检测
+  const [failedIcons, setFailedIcons] = useState<Map<string, number>>(new Map());
   const loadingIconsRef = useRef<Map<string, { img: HTMLImageElement; timeoutId: Timeout }>>(new Map());
-  // 记录待清理的资源
   const timeoutsRef = useRef<Set<Timeout>>(new Set());
 
-  // 从 URL 提取域名
   const getDomainFromUrl = (url: string): string => {
     try {
       const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
@@ -41,27 +36,26 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     }
   };
 
-  // 获取 favicon URL - 使用 Icon.horse 服务（国内可访问，图标更全）
   const getFaviconUrl = (url: string): string => {
     const domain = getDomainFromUrl(url);
     return `https://icon.horse/icon/${domain}`;
   };
 
-  // 生成默认图标（使用域名首字母）- 更清晰易读
+  const getFallbackFaviconUrl = (url: string): string => {
+    const domain = getDomainFromUrl(url);
+    return `https://favicon.im/${domain}`;
+  };
+
   const getDefaultIcon = (name: string, url: string): string => {
-    // 优先从URL提取域名首字母
     let firstChar = 'L';
     try {
       const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
-      // 去掉www.前缀
       const cleanDomain = domain.replace(/^www\./, '');
       firstChar = cleanDomain.charAt(0).toUpperCase();
     } catch {
-      // URL解析失败，使用名称首字母
       firstChar = name.trim().charAt(0).toUpperCase() || 'L';
     }
 
-    // 更丰富的颜色 palette，灵感来自 start.me
     const gradients = [
       ['rgba(102, 126, 234, 0.9)', 'rgba(118, 75, 162, 0.9)'],
       ['rgba(240, 147, 251, 0.9)', 'rgba(245, 86, 158, 0.9)'],
@@ -74,7 +68,6 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     ];
     const colorIndex = (name + url).length % gradients.length;
     const [color1, color2] = gradients[colorIndex];
-    // 最大化字体，占满整个图标区域
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <defs>
         <linearGradient id="grad${colorIndex}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -87,7 +80,6 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     </svg>`;
   };
 
-  // 将 SVG 字符串转换为 Data URL - 使用安全的 Base64 编码
   const getDataUrlIcon = (svgString: string): string => {
     const encoder = new TextEncoder();
     const uint8Array = encoder.encode(svgString);
@@ -98,75 +90,69 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     return 'data:image/svg+xml;base64,' + btoa(binary);
   };
 
-  // 图标加载失败时的处理 - 仅本地记录，不保存到存储避免循环
-  const handleIconError = (link: LinkItem) => {
-    if (failedIcons.has(link.id)) return; // 已记录，跳过
+  const handleIconError = (link: LinkItem, img?: HTMLImageElement): boolean => {
+    const failCount = failedIcons.get(link.id) || 0;
+    if (failCount >= 2) return false;
 
-    const newFailedIcons = new Set(failedIcons);
-    newFailedIcons.add(link.id);
+    const newFailedIcons = new Map(failedIcons);
+    newFailedIcons.set(link.id, failCount + 1);
     setFailedIcons(newFailedIcons);
+
+    if (failCount === 0 && img) {
+      img.src = getFallbackFaviconUrl(link.url);
+      return true;
+    }
+    return false;
   };
 
-  // 图标加载成功后的处理 - 直接保存URL，不再检测尺寸避免误判
   const handleIconLoad = async (link: LinkItem, img: HTMLImageElement) => {
-    // 清除加载记录
     const loadingData = loadingIconsRef.current.get(link.id);
     if (loadingData) {
       clearTimeout(loadingData.timeoutId);
       loadingIconsRef.current.delete(link.id);
     }
 
-    // 排除有问题的特殊站点
     const hasAIPortal = link.url.includes('aiportal');
     if (hasAIPortal) {
       handleIconError(link);
       return;
     }
 
-    // 图标加载成功，将图标URL保存到link对象中，避免下次重新请求
     const updatedLinks = links.map((l: LinkItem) =>
       l.id === link.id ? { ...l, icon: img.src } : l
     );
     await syncData(updatedLinks);
   };
 
-  // 图标加载超时处理 - 5秒内未加载完成视为失败，给足加载时间
   const startIconTimeout = (link: LinkItem, img: HTMLImageElement) => {
     const timeoutId = setTimeout(() => {
-      // 如果图片还在加载记录中，说明超时了
       if (loadingIconsRef.current.has(link.id)) {
         loadingIconsRef.current.delete(link.id);
-        handleIconError(link);
+        handleIconError(link, img);
       }
     }, 5000);
 
-    // 存储超时ID以便清理
     timeoutsRef.current.add(timeoutId);
     loadingIconsRef.current.set(link.id, { img, timeoutId });
   };
 
-  // 切换视图模式
   const handleToggleViewMode = () => {
     const newMode = viewMode === 'cloud' ? 'grid' : 'cloud';
     onDataChange({ links, viewMode: newMode, failedIcons: widget.data.failedIcons || [] });
   };
 
-  // 切换编辑模式
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
   };
 
   const syncData = async (newLinks: LinkItem[]) => {
-    // 清理不再存在的书签的失败记录 - 使用 Set 优化查找
     const linkIds = new Set(newLinks.map(link => link.id));
-    const newFailedIconIds = new Set<string>();
-    for (const id of failedIcons) {
-      if (linkIds.has(id)) newFailedIconIds.add(id);
+    const newFailedIcons = new Map(failedIcons);
+    for (const id of newFailedIcons.keys()) {
+      if (!linkIds.has(id)) newFailedIcons.delete(id);
     }
-    await onDataChange({
-      links: newLinks,
-      viewMode
-    });
+    setFailedIcons(newFailedIcons);
+    await onDataChange({ links: newLinks, viewMode });
   };
 
   const handleDeleteLink = async (linkId: string) => {
@@ -203,13 +189,10 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     setNewLinkUrl('');
   };
 
-  // 组件卸载时清理所有超时和资源
   useEffect(() => {
     return () => {
-      // 清理所有图片加载超时
       timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       timeoutsRef.current.clear();
-      // 清理加载引用
       loadingIconsRef.current.clear();
     };
   }, []);
@@ -224,16 +207,16 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
             className={`edit-mode-toggle ${isEditMode ? 'active' : ''}`}
             title={isEditMode ? '退出编辑' : '编辑书签'}
           >
-            <Edit2 size={14} />
+            <Edit size={14} />
           </button>
           <button
             onClick={handleToggleViewMode}
             className="view-mode-toggle"
             title={viewMode === 'grid' ? '切换到云' : '切换到网格'}
           >
-            {viewMode === 'grid' ? <Cloud size={16} /> : <Grid size={16} />}
+            {viewMode === 'grid' ? <Cloud size={16} /> : <LayoutGrid size={16} />}
           </button>
-          <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
         </div>
       </h3>
 
@@ -258,7 +241,7 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
                     rel="noopener noreferrer"
                     className="link-item"
                   >
-                    {!failedIcons.has(link.id) ? (
+                    {(failedIcons.get(link.id) || 0) < 2 ? (
                       <img
                         src={link.icon || getFaviconUrl(link.url)}
                         alt=""
@@ -267,31 +250,33 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
                         style={{ opacity: link.icon ? 1 : 0, transition: 'opacity 0.2s ease' }}
                         ref={(img) => {
                           if (img && !link.icon) {
-                            // 只有当没有保存的icon时才需要检测和超时
                             startIconTimeout(link, img);
                           }
                         }}
-                        onError={() => {
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
                           const loadingData = loadingIconsRef.current.get(link.id);
                           if (loadingData) {
                             clearTimeout(loadingData.timeoutId);
                             timeoutsRef.current.delete(loadingData.timeoutId);
                             loadingIconsRef.current.delete(link.id);
                           }
-                          handleIconError(link);
-                          // 如果已有icon但加载失败，清除无效icon，下次重新加载
-                          if (link.icon) {
-                            const updatedLinks = links.map((l: LinkItem) =>
-                              l.id === link.id ? { ...l, icon: undefined } : l
-                            );
-                            syncData(updatedLinks);
+                          const triedFallback = handleIconError(link, img);
+                          if (!triedFallback) {
+                            if (link.icon) {
+                              const updatedLinks = links.map((l: LinkItem) =>
+                                l.id === link.id ? { ...l, icon: undefined } : l
+                              );
+                              syncData(updatedLinks);
+                            }
                           }
                         }}
                         onLoad={(e) => {
                           const img = e.target as HTMLImageElement;
-                          // 加载完成后显示图标
                           img.style.opacity = '1';
-                          // 每次加载成功都保存icon，确保最新
+                          const newFailedIcons = new Map(failedIcons);
+                          newFailedIcons.delete(link.id);
+                          setFailedIcons(newFailedIcons);
                           handleIconLoad(link, img);
                         }}
                       />
@@ -311,14 +296,14 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
                         className="link-edit"
                         title="编辑"
                       >
-                        <Edit2 size={12} />
+                        <Edit size={12} />
                       </button>
                       <button
                         onClick={() => handleDeleteLink(link.id)}
                         className="link-delete"
                         title="删除"
                       >
-                        <X size={14} />
+                        <Close size={14} />
                       </button>
                     </div>
                   )}
@@ -356,36 +341,8 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
             </div>
           ) : (
             <button
+              className="add-bookmark-btn"
               onClick={openAddForm}
-              style={{
-                marginTop: '12px',
-                padding: '10px 16px',
-                width: '100%',
-                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-                border: '1px solid rgba(102, 126, 234, 0.2)',
-                borderRadius: 'var(--radius-lg)',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: 'var(--color-primary)',
-                transition: 'all var(--transition-fast)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--primary-gradient)';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.borderColor = 'transparent';
-                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(20, 184, 166, 0.08) 100%)';
-                e.currentTarget.style.color = 'var(--color-primary)';
-                e.currentTarget.style.borderColor = 'rgba(13, 148, 136, 0.2)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
             >
               <Plus size={16} />
               添加书签

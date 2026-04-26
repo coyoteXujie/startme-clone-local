@@ -4,7 +4,7 @@
 
 一个美观实用的 Chrome 浏览器扩展，将你的新标签页打造成个性化的起始页。支持多标签页管理、RSS 订阅、书签、任务清单、天气、番茄钟等功能。完全本地存储，无需注册登录。
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Chrome](https://img.shields.io/badge/chrome-Manifest%20V3-blue.svg)
 
@@ -26,8 +26,9 @@
 
 ### 🔖 书签管理
 - 云图/网格两种视图模式
-- 自动获取网站 favicon 图标
-- 快速访问常用网站
+- 网格布局自动均匀分布居中，美观整洁
+- 自动获取网站 favicon 图标，加载失败时显示首字母渐变图标
+- 快速访问常用网站，支持编辑和删除
 
 ### ✓ 任务清单
 - 待办事项管理
@@ -36,8 +37,10 @@
 
 ### ☀️ 天气信息
 - 使用 Open-Meteo API（免费无需 Key）
-- 支持多城市切换
-- 显示当前温度、天气状况和 7 天预报
+- 支持多城市切换，城市配置持久化存储
+- 显示3天天气预报，包含高低温
+- 15分钟自动刷新，实时获取最新天气数据
+- 天气图标根据类型自动配色，清晰直观
 
 ### 🍅 番茄钟
 - 内置专注计时器
@@ -53,6 +56,14 @@
 - 预设百度、Bing、Google、搜狗
 - 支持添加自定义搜索引擎
 - 快速切换默认搜索源
+
+### 🎨 现代化UI设计
+- 参考 start.me 的清爽极简风格
+- 优化的毛玻璃效果，通透轻盈
+- 更宽松的布局和合理的间距，呼吸感强
+- 流畅的动画和微交互，操作体验愉悦
+- 自适应响应式设计，适配不同屏幕尺寸
+- 最大化内容区域，减少不必要的边距浪费
 
 ### 💾 数据备份
 - 一键导出/导入数据
@@ -126,7 +137,7 @@ npm run build
 ## 🏗️ 项目结构
 
 ```
-startme-local-clone/
+startme-clone-local/
 ├── public/
 │   └── manifest.json          # Chrome 扩展清单文件
 ├── src/
@@ -166,7 +177,7 @@ startme-local-clone/
 - **React 18** + **TypeScript** - 类型安全的现代前端开发
 - **Vite 5** - 快速的开发和构建工具
 - **Chrome Extension Manifest V3** - 最新的扩展 API
-- **lucide-react** - 精美的图标库
+- **lucide-react** + **@icon-park/react** - 丰富的图标库支持
 - **Chrome Storage API** - 本地数据持久化
 
 ---
@@ -257,7 +268,8 @@ https://www.google.com/s2/favicons?domain={domain}&sz=64
 ### 天气信息
 - 点击城市名称切换显示
 - 点击 **×** 可删除城市
-- 输入新城市名添加
+- 输入新城市名添加，城市配置自动持久化保存
+- 天气数据每15分钟自动刷新
 
 ### 背景设置
 1. 点击右上角菜单按钮
@@ -295,6 +307,22 @@ https://www.google.com/s2/favicons?domain={domain}&sz=64
 
 ---
 
+## 📝 更新日志
+
+### v1.2.0 (2026-04-25)
+- ✨ 全新UI设计，参考start.me的清爽极简风格
+- ✨ 优化毛玻璃效果，更通透轻盈的视觉体验
+- ✨ 重新设计布局和间距，增强页面呼吸感
+- ✨ 天气组件优化：3天预报，15分钟自动刷新，城市配置持久化
+- ✨ 书签组件优化：网格布局自动居中均匀分布，优化图标加载 fallback
+- ✨ 减少页面两侧边距，最大化内容显示区域
+- ✨ 优化所有动画和微交互，操作更流畅自然
+- 🔧 修复TypeScript类型错误，解决图标属性兼容性问题
+- 🔧 代码整体优化，移除无用导入和冗余代码
+- 🔧 提升构建稳定性，确保零错误编译
+
+---
+
 ## 🤝 贡献指南
 
 欢迎提交 Issue 和 Pull Request！
@@ -316,6 +344,6 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ## 🙏 致谢
 
 - 灵感来源于 [Start.me](https://start.me/)
-- 图标来自 [lucide-react](https://lucide.dev/)
+- 图标来自 [lucide-react](https://lucide.dev/) 和 [IconPark](https://iconpark.oceanengine.com/)
 - 天气数据来自 [Open-Meteo](https://open-meteo.com/)
 - RSS 解析由 [rss2json](https://rss2json.com/) 提供

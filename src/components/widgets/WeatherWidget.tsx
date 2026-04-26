@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Widget } from '../../types';
-import { ChevronDown, Plus, X } from 'lucide-react';
+import { Down, Plus, Close } from '@icon-park/react';
+import { Sun, Cloud, CloudRain, CloudDrizzle, Snowflake, CloudLightning } from 'lucide-react';
 
 interface WeatherWidgetProps {
   widget: Widget;
@@ -20,7 +21,6 @@ interface WeatherInfo {
   }>;
 }
 
-// 城市名称到经纬度的映射（用于 Open-Meteo API）
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   '北京': { lat: 39.9042, lon: 116.4074 },
   '上海': { lat: 31.2304, lon: 121.4737 },
@@ -34,20 +34,29 @@ const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   '南京': { lat: 32.0603, lon: 118.7969 },
 };
 
-// WMO 天气代码转 lucide 图标名称
-const getWeatherIcon = (code: number): string => {
+const WMO_TO_ICON: Record<string, any> = {
+  'sun': Sun,
+  'cloud-sun': Cloud,
+  'cloud-drizzle': CloudDrizzle,
+  'cloud-rain': CloudRain,
+  'snowflake': Snowflake,
+  'cloud-snow': Snowflake,
+  'cloud-lightning': CloudLightning,
+  'cloud': Cloud,
+};
+
+const getWeatherIconName = (code: number): string => {
   if (code === 0) return 'sun';
   if (code >= 1 && code <= 3) return 'cloud-sun';
   if (code >= 45 && code <= 48) return 'cloud-drizzle';
   if (code >= 51 && code <= 67) return 'cloud-rain';
   if (code >= 71 && code <= 77) return 'snowflake';
   if (code >= 80 && code <= 82) return 'cloud-rain';
-  if (code >= 85 && code <= 86) return 'cloud-snow';
+  if (code >= 85 && code <= 86) return 'snowflake';
   if (code >= 95) return 'cloud-lightning';
   return 'cloud';
 };
 
-// 获取星期几
 const getDayOfWeek = (dateStr: string): string => {
   const date = new Date(dateStr);
   const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -60,58 +69,53 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   const [weather, setWeather] = useState<WeatherInfo | null>(null);
   const [showAddCity, setShowAddCity] = useState(false);
   const [newCity, setNewCity] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // 使用 AbortController 处理请求超时和取消
+  // 监听外部数据变化，同步更新本地状态
+  useEffect(() => {
+    if (widget.data.cities) {
+      setCities(widget.data.cities);
+      if (!widget.data.cities.includes(activeCity)) {
+        setActiveCity(widget.data.cities[0]);
+      }
+    }
+  }, [widget.data.cities, activeCity]);
+
   const abortControllerRef = useRef<AbortController | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchWeather = useCallback(async (city: string) => {
-    // 取消之前的请求
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
       const coords = CITY_COORDS[city] || { lat: 39.9042, lon: 116.4074 };
-
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7`;
-
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=3`;
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error('天气 API 请求失败');
-      }
-
+      if (!res.ok) throw new Error('天气 API 请求失败');
       const data = await res.json();
       const daily = data.daily;
 
-      // 显示 6 天预报（今天 + 未来 5 天）
-      const forecast = daily.time.slice(0, 6).map((dateStr: string, index: number) => ({
+      const forecast = daily.time.slice(0, 3).map((dateStr: string, index: number) => ({
         day: index === 0 ? '今天' : getDayOfWeek(dateStr),
         high: Math.round(daily.temperature_2m_max[index]),
         low: Math.round(daily.temperature_2m_min[index]),
-        icon: getWeatherIcon(daily.weather_code[index]),
+        icon: getWeatherIconName(daily.weather_code[index]),
       }));
 
-      setWeather({
-        city,
-        forecast,
-      });
+      setWeather({ city, forecast });
+      setLastUpdated(new Date());
     } catch (error: any) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        // 请求被取消或超时，不处理
-        return;
-      }
+      if (error.name === 'AbortError') return;
       console.error('获取天气失败:', error);
       setWeather({
         city,
-        // 6 天预报（今天 +5 天）
-        forecast: Array(6).fill(null).map((_, i) => ({
+        forecast: Array(3).fill(null).map((_, i) => ({
           day: i === 0 ? '今天' : getDayOfWeek(new Date(Date.now() + i * 86400000).toISOString()),
           high: 20,
           low: 10,
@@ -124,11 +128,17 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   useEffect(() => {
     fetchWeather(activeCity);
 
+    // 设置15分钟自动更新
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    intervalRef.current = setInterval(() => {
+      fetchWeather(activeCity);
+    }, 15 * 60 * 1000); // 15分钟
+
     return () => {
-      // 组件卸载时取消请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [activeCity, fetchWeather]);
 
@@ -149,24 +159,21 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
     }
     const updatedCities = cities.filter((c) => c !== cityToRemove);
     setCities(updatedCities);
-    if (activeCity === cityToRemove) {
-      setActiveCity(updatedCities[0]);
-    }
+    if (activeCity === cityToRemove) setActiveCity(updatedCities[0]);
     await onDataChange({ cities: updatedCities });
   };
 
   const renderWeatherIcon = (iconName: string, size: number = 24) => {
-    const icons: Record<string, React.ReactNode> = {
-      'sun': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.4141"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
-      'cloud-sun': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.657a4 4 0 1 1-5.89-3.78l.208-.125a3.5 3.5 0 0 1 5.047 4.15l-.2.125a4.002 4.002 0 0 1-1.165 6.973"/><path d="M12 20v2"/><path d="m6.34 17.66-1.41 1.41"/><path d="M2 12h2"/></svg>,
-      'cloud-drizzle': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 19v2"/><path d="M8 13v2"/><path d="M16 19v2"/><path d="M16 13v2"/><path d="M12 21v2"/><path d="M12 15v2"/></svg>,
-      'cloud-rain': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>,
-      'snowflake': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m20 20-8-8-8 8"/><path d="m4 4 8 8 8-8"/></svg>,
-      'cloud-snow': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01"/><path d="M8 19h.01"/><path d="M12 17h.01"/><path d="M12 21h.01"/><path d="M16 15h.01"/><path d="M16 19h.01"/></svg>,
-      'cloud-lightning': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m15 14-6 6 4-1h4Z"/><path d="M13 14v6"/></svg>,
-      'cloud': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/></svg>,
-    };
-    return icons[iconName] || icons['cloud'];
+    const IconComponent = WMO_TO_ICON[iconName] || Cloud;
+
+    // 根据天气类型设置不同的颜色
+    let color = '#6b7280'; // 默认灰色
+    if (iconName === 'sun') color = '#f59e0b'; // 晴天橙色
+    else if (iconName.includes('rain')) color = '#3b82f6'; // 雨天蓝色
+    else if (iconName.includes('snow')) color = '#0ea5e9'; // 雪天蓝绿色
+    else if (iconName.includes('lightning')) color = '#f97316'; // 雷暴橙色
+
+    return <IconComponent size={size} color={color} strokeWidth={2} />;
   };
 
   return (
@@ -174,7 +181,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       <div className="weather-widget-header">
         <h3 className="widget-title" onClick={onToggleCollapsed}>
           <span>{widget.title}</span>
-          <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
         </h3>
         {cities.length > 1 && (
           <button
@@ -182,7 +189,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
             onClick={() => handleRemoveCity(activeCity)}
             title={`移除${activeCity}`}
           >
-            <X size={14} />
+            <Close size={14} />
           </button>
         )}
       </div>
@@ -193,7 +200,6 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
         </div>
       ) : (
         <>
-          {/* 城市选择 */}
           <div className="weather-cities">
             {cities.map((city) => (
               <button
@@ -209,7 +215,6 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
             </button>
           </div>
 
-          {/* 添加城市输入框 */}
           {showAddCity && (
             <div className="weather-add-city-input">
               <input
@@ -229,21 +234,26 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
           {weather && (
             <>
-              {/* 天气预报（今天 + 未来 5 天，共 6 天） */}
               <div className="weather-forecast">
                 {weather.forecast.map((day, index) => (
                   <div key={index} className={`forecast-day${index === 0 ? ' forecast-day-today' : ''}`}>
                     <div className="forecast-day-name">{day.day}</div>
                     <div className="forecast-icon">
-                      {renderWeatherIcon(day.icon, 24)}
+                      {renderWeatherIcon(day.icon, 28)}
                     </div>
                     <div className="forecast-temp">
                       <span className="forecast-high">{day.high}°</span>
+                      <span className="forecast-divider">/</span>
                       <span className="forecast-low">{day.low}°</span>
                     </div>
                   </div>
                 ))}
               </div>
+              {lastUpdated && (
+                <div className="weather-update-time">
+                  更新于 {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
             </>
           )}
         </>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tab } from '../types';
-import { LayoutGrid, X } from 'lucide-react';
+import { Close } from '@icon-park/react';
 
 interface TabBarProps {
   tabs: Tab[];
@@ -9,6 +9,15 @@ interface TabBarProps {
   onAddTab: () => void;
   onDeleteTab: (id: string, e: React.MouseEvent) => void;
 }
+
+const TabIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" strokeWidth="2" className={className}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
 
 const TabBar: React.FC<TabBarProps> = ({
   tabs,
@@ -25,20 +34,20 @@ const TabBar: React.FC<TabBarProps> = ({
           className={`tab ${tab.id === activeTabId ? 'active' : ''}`}
           onClick={() => onTabClick(tab.id)}
         >
-          <LayoutGrid size={16} /> {tab.name}
+          <TabIcon className="tab-icon" /> {tab.name}
           {tabs.length > 1 && (
             <button
               className="tab-delete"
               onClick={(e) => onDeleteTab(tab.id, e)}
               title="删除标签页"
             >
-              <X size={14} />
+              <Close size={14} />
             </button>
           )}
         </div>
       ))}
       <button className="add-tab-btn" onClick={onAddTab} title="添加标签页">
-        <LayoutGrid size={16} />
+        <TabIcon />
       </button>
     </div>
   );

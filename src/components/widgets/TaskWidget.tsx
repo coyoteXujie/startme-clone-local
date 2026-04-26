@@ -1,6 +1,6 @@
 import React, { useState, memo } from 'react';
 import { Widget, Task } from '../../types';
-import { ChevronDown, Edit, Check, X } from 'lucide-react';
+import { Down, Edit, Check, Close } from '@icon-park/react';
 
 interface TaskWidgetProps {
   widget: Widget;
@@ -18,11 +18,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
   const tasks: Task[] = widget.data.tasks || [];
 
   const handleAddTask = async () => {
-    console.log('handleAddTask 被调用, newTask:', newTask);
-    if (!newTask.trim()) {
-      console.log('任务为空，跳过');
-      return;
-    }
+    if (!newTask.trim()) return;
 
     const task: Task = {
       id: `task-${Date.now()}`,
@@ -31,10 +27,8 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
       createdAt: Date.now(),
     };
 
-    console.log('添加任务:', task);
     await onDataChange({ tasks: [...tasks, task] });
     setNewTask('');
-    console.log('任务已添加并清空输入');
   };
 
   const handleToggleTask = async (taskId: string) => {
@@ -61,15 +55,10 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
   };
 
   const handleSaveEdit = async (taskId: string) => {
-    if (!editingText.trim()) {
-      return;
-    }
+    if (!editingText.trim()) return;
     const updatedTasks = tasks.map((task) =>
       task.id === taskId
-        ? {
-            ...task,
-            title: editingText.trim(),
-          }
+        ? { ...task, title: editingText.trim() }
         : task
     );
     await onDataChange({ tasks: updatedTasks });
@@ -89,7 +78,6 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days === 0) {
-      // 今天：显示月 - 日 时：分
       return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) + ' ' +
              date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
     } else if (days === 1) {
@@ -105,7 +93,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     <div className="task-widget widget-content">
       <h3 className="widget-title" onClick={onToggleCollapsed}>
         <span>{widget.title}</span>
-        <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+        <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
       </h3>
       {widget.collapsed ? (
         <div className="collapsed-content">
@@ -120,18 +108,13 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                console.log('onKeyDown 触发, key:', e.key);
                 if (e.key === 'Enter') {
-                  console.log('检测到 Enter 键，调用 handleAddTask');
                   e.preventDefault();
                   handleAddTask();
                 }
               }}
             />
-            <button onClick={() => {
-              console.log('添加按钮被点击');
-              handleAddTask();
-            }}>添加</button>
+            <button onClick={handleAddTask}>添加</button>
           </div>
           <ul className="task-list">
             {tasks.length === 0 ? (
@@ -155,11 +138,8 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
                           value={editingText}
                           onChange={(e) => setEditingText(e.target.value)}
                           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                            if (e.key === 'Enter') {
-                              handleSaveEdit(task.id);
-                            } else if (e.key === 'Escape') {
-                              handleCancelEdit();
-                            }
+                            if (e.key === 'Enter') handleSaveEdit(task.id);
+                            else if (e.key === 'Escape') handleCancelEdit();
                           }}
                           autoFocus
                         />
@@ -177,7 +157,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
                           onClick={handleCancelEdit}
                           title="取消"
                         >
-                          <X size={14} />
+                          <Close size={14} />
                         </button>
                       </div>
                     </>
@@ -204,7 +184,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
                           onClick={() => handleDeleteTask(task.id)}
                           title="删除任务"
                         >
-                          ×
+                          <Close size={14} />
                         </button>
                       </div>
                     </>

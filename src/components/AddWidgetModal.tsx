@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Rss, CheckSquare, CloudSun, Timer } from 'lucide-react';
+import { Bookmark, Rss, Checklist, Cloudy, Timer } from '@icon-park/react';
 
 interface AddWidgetModalProps {
   onSelect: (type: 'tasks' | 'weather' | 'rss' | 'links' | 'pomodoro') => void;
@@ -10,8 +10,8 @@ const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onSelect, onClose }) =>
   const widgets = [
     { type: 'links' as const, name: '书签', icon: Bookmark },
     { type: 'rss' as const, name: '新闻源 (RSS)', icon: Rss },
-    { type: 'tasks' as const, name: '任务', icon: CheckSquare },
-    { type: 'weather' as const, name: '天气', icon: CloudSun },
+    { type: 'tasks' as const, name: '任务', icon: Checklist },
+    { type: 'weather' as const, name: '天气', icon: Cloudy },
     { type: 'pomodoro' as const, name: '番茄钟', icon: Timer },
   ];
 
@@ -36,14 +36,14 @@ const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onSelect, onClose }) =>
                   handleTypeSelect(widget.type);
                 }}
               >
-                <widget.icon className="modal-option-icon" size={20} />
+                <widget.icon className="modal-option-icon" size={20} colors={['currentColor', 'currentColor']} />
                 <div className="modal-option-name">{widget.name}</div>
               </div>
             ))}
           </div>
         </div>
         <div className="modal-footer">
-          <button className="modal-close" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+          <button className="btn-cancel" onClick={(e) => { e.stopPropagation(); onClose(); }}>
             取消
           </button>
         </div>
