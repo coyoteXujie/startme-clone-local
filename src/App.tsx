@@ -11,21 +11,45 @@ import LinksWidget from './components/widgets/LinksWidget';
 import PomodoroWidget from './components/widgets/PomodoroWidget';
 import AddWidgetModal from './components/AddWidgetModal';
 import ToastContainer from './components/ToastContainer';
-import { Search, Setting, Pic, Close, Plus, MenuFold, Delete, Drag, Download, Upload, Globe, Compass, FindOne } from '@icon-park/react';
+import { Search, Setting, Pic, Close, Plus, MenuFold, Delete, Drag, Download, Upload } from '@icon-park/react';
 import defaultBg from './assets/background.jpg';
+
+// 百度图标 - 使用 simple-icons 官方 SVG
+const BaiduIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="#2932e1">
+    <path d="M9.154 0C7.71 0 6.54 1.658 6.54 3.707c0 2.051 1.171 3.71 2.615 3.71 1.446 0 2.614-1.659 2.614-3.71C11.768 1.658 10.6 0 9.154 0zm7.025.594C14.86.58 13.347 2.589 13.2 3.927c-.187 1.745.25 3.487 2.179 3.735 1.933.25 3.175-1.806 3.422-3.364.252-1.555-.995-3.364-2.362-3.674a1.218 1.218 0 0 0-.261-.03zM3.582 5.535a2.811 2.811 0 0 0-.156.008c-2.118.19-2.428 3.24-2.428 3.24-.287 1.41.686 4.425 3.297 3.864 2.617-.561 2.262-3.68 2.183-4.362-.125-1.018-1.292-2.773-2.896-2.75zm16.534 1.753c-2.308 0-2.617 2.119-2.617 3.616 0 1.43.121 3.425 2.988 3.362 2.867-.063 2.553-3.238 2.553-3.988 0-.745-.62-2.99-2.924-2.99zm-8.264 2.478c-1.424.014-2.708.925-3.323 1.947-1.118 1.868-2.863 3.05-3.112 3.363-.25.309-3.61 2.116-2.864 5.42.746 3.301 3.365 3.237 3.365 3.237s1.93.19 4.171-.31c2.24-.495 4.17.123 4.17.123s5.233 1.748 6.665-1.616c1.43-3.364-.808-5.109-.808-5.109s-2.99-2.306-4.736-4.798c-1.072-1.665-2.348-2.268-3.528-2.257zm-2.234 3.84l1.542.024v8.197H7.758c-1.47-.291-2.055-1.292-2.13-1.462-.072-.173-.488-.976-.268-2.343.635-2.049 2.447-2.196 2.447-2.196h1.81zm3.964 2.39v3.881c.096.413.612.488.612.488h1.614v-4.343h1.689v5.782h-3.915c-1.517-.39-1.59-1.465-1.59-1.465v-4.317zm-5.458 1.147c-.66.197-.978.708-1.05.928-.076.22-.247.78-.1 1.269.294 1.095 1.248 1.144 1.248 1.144h1.37v-3.34z"/>
+  </svg>
+);
+
+// Bing 图标 - 使用微软官方风格
+const BingIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <rect width="24" height="24" rx="5" fill="#00809d"/>
+    <path d="M5 3v18l7-4 7 4V3l-7 4-7-4z" fill="white"/>
+  </svg>
+);
+
+// Google 图标 - 彩色官方版本
+const GoogleIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
 
 // 搜索引擎图标映射
 const SEARCH_ENGINE_ICONS: Record<string, React.ReactNode> = {
-  baidu: <Search size={18} colors={['#2932e1', '#ffffff']} />,
-  bing: <FindOne size={18} colors={['#00809d', '#ffffff']} />,
-  google: <Globe size={18} colors={['#4285f4', '#34a853', '#fbbc05', '#ea4335']} />,
-  sogou: <Compass size={18} colors={['#ff6600', '#ff9933']} />,
+  baidu: <BaiduIcon size={18} />,
+  bing: <BingIcon size={18} />,
+  google: <GoogleIcon size={18} />,
 };
 
 // 为搜索引擎添加图标
 const withIcon = (engine: SearchEngine): SearchEngine => ({
   ...engine,
-  icon: SEARCH_ENGINE_ICONS[engine.id] || <Compass size={18} colors={['#667eea', '#764ba2']} />,
+  icon: SEARCH_ENGINE_ICONS[engine.id] || <Search size={18} colors={['#00809d', '#2932e1']} />,
 });
 
 const App: React.FC = () => {
@@ -658,7 +682,7 @@ const App: React.FC = () => {
       url: newEngineUrl.trim(),
       icon: (
         <svg viewBox="0 0 100 100" width="18" height="18">
-          <circle cx="50" cy="50" r="45" fill="#667eea"/>
+          <circle cx="50" cy="50" r="45" fill="#00809d"/>
           <text x="50" y="65" fontSize="40" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial">
             {newEngineName.trim().charAt(0)}
           </text>
@@ -900,7 +924,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Pic className="header-menu-icon" size={18} colors={['#667eea', '#764ba2']} />
+                <Pic className="header-menu-icon" size={18} colors={['#00809d', '#2932e1']} />
                 <span>选择本地图片</span>
               </button>
               <button
@@ -911,7 +935,7 @@ const App: React.FC = () => {
                   setShowHeaderMenu(false);
                 }}
               >
-                <Globe className="header-menu-icon" size={18} colors={['#667eea', '#764ba2']} />
+                <Search className="header-menu-icon" size={18} colors={['#00809d', '#2932e1']} />
                 <span>输入图片 URL</span>
               </button>
               {bgImage && (

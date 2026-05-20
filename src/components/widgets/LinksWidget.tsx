@@ -57,7 +57,7 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     }
 
     const gradients = [
-      ['rgba(102, 126, 234, 0.9)', 'rgba(118, 75, 162, 0.9)'],
+      ['rgba(0, 128, 157, 0.9)', 'rgba(41, 50, 225, 0.9)'],
       ['rgba(240, 147, 251, 0.9)', 'rgba(245, 86, 158, 0.9)'],
       ['rgba(79, 172, 254, 0.9)', 'rgba(0, 242, 234, 0.9)'],
       ['rgba(67, 233, 123, 0.9)', 'rgba(56, 190, 118, 0.9)'],

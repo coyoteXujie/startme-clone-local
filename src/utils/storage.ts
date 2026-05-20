@@ -40,7 +40,6 @@ const DEFAULT_SEARCH_ENGINES: LocalSearchEngine[] = [
   { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=' },
   { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=' },
   { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=' },
-  { id: 'sogou', name: '搜狗', url: 'https://www.sogou.com/web?query=' },
 ];
 
 /**
@@ -124,6 +123,18 @@ export const storage = {
       // 迁移旧数据中的背景图片到单独存储
       if (data.bgImage) {
         chrome.storage.local.set({ [STORAGE_KEY_BG_IMAGE]: data.bgImage });
+      }
+
+      // 移除搜狗搜索引擎（已废弃）
+      if (processedData.searchEngines) {
+        processedData.searchEngines = processedData.searchEngines.filter(
+          (e: any) => e.id !== 'sogou'
+        );
+      }
+
+      // 如果当前选中的引擎是搜狗，切换到百度
+      if (processedData.searchEngine === 'sogou') {
+        processedData.searchEngine = 'baidu';
       }
 
       // 移除 bgImage 字段（现在单独存储）
@@ -311,10 +322,8 @@ export const storage = {
         widgets: col.widgets.map((widget) => ({ ...widget })),
       })),
     }));
-    console.log('保存标签页列表:', newTabs.map((t) => ({ id: t.id, name: t.name, widgetCount: t.columns.reduce((sum, col) => sum + col.widgets.length, 0) })));
     const data = await this.getData();
     await this.saveData({ ...data, tabs: newTabs });
-    console.log('保存标签页列表完成');
   },
 
   /**
@@ -404,7 +413,6 @@ export const storage = {
         // 创建新的 widget 对象以确保 React 检测到变化
         const updatedWidget = { ...col.widgets[widgetIndex], data };
         col.widgets[widgetIndex] = updatedWidget;
-        console.log('保存小组件数据:', { widgetId, data });
         await this.saveTabs(tabs);
         return;
       }

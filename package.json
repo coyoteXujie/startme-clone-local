@@ -4,7 +4,7 @@
   "description": "A lightweight browser start page extension with custom tabs, RSS feeds, bookmarks, tasks, and weather - fully local storage",
   "private": false,
   "license": "MIT",
-  "author": "Your Name <your.email@example.com>",
+  "author": "StartMe Team",
   "repository": {
     "type": "git",
     "url": "https://github.com/YOUR_USERNAME/startme-local-clone.git"
@@ -17,7 +17,9 @@
     "bookmarks",
     "productivity",
     "weather",
-    "manifest-v3"
+    "manifest-v3",
+    "pomodoro",
+    "local-storage"
   ],
   "scripts": {
     "dev": "vite",
@@ -26,7 +28,6 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.88",
     "@icon-park/react": "^1.4.2",
     "lucide-react": "^1.0.1",
     "react": "^18.2.0",

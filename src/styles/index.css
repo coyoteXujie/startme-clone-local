@@ -529,8 +529,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   align-items: center;
   justify-content: center;
   height: 48px;
-  min-width: 44px;
-  max-width: 60px;
+  min-width: 52px;
+  max-width: 64px;
   color: var(--color-gray-700);
   position: relative;
   z-index: 2;
@@ -571,7 +571,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
   border-radius: var(--radius-lg);
@@ -579,6 +579,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   transition: all var(--transition-fast) var(--ease-out);
   font-size: var(--text-sm);
   color: var(--color-gray-700);
+  min-height: 44px;
 }
 
 .engine-menu-item:hover {
@@ -586,7 +587,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .engine-menu-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: oklch(0.58 0.11 182 / 0.1);
   color: var(--color-primary);
   font-weight: var(--font-medium);
 }
@@ -650,8 +651,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   background: transparent;
   border: none;
   color: var(--color-gray-400);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-xl); /* 圆角和搜索框协调 */
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
   cursor: pointer;
   transition: all var(--transition-fast) var(--ease-out-cubic);
   display: flex;
@@ -659,6 +660,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   justify-content: center;
   font-weight: var(--font-medium);
   margin-right: 2px;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .search-icon-btn:hover {
@@ -765,17 +768,21 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .tab-delete {
-  background: none;
+  background: transparent;
   border: none;
   color: inherit;
   cursor: pointer;
   font-size: 14px;
-  opacity: 0.7;
-  padding: 0 var(--space-1);
+  opacity: 0.5;
+  padding: 4px;
+  margin-left: 4px;
+  border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
 }
 
 .tab-delete:hover {
@@ -863,7 +870,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
   border-radius: var(--radius-lg);
@@ -871,6 +878,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   transition: all var(--transition-fast) var(--ease-out);
   font-size: var(--text-sm);
   color: var(--color-gray-700);
+  min-height: 44px;
 }
 
 .header-menu-item:hover {
@@ -1086,7 +1094,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 .widget-container.drag-over {
   border: 2px dashed var(--color-primary);
   transform: scale(1.02);
-  background: rgba(102, 126, 234, 0.05);
+  background: oklch(0.58 0.11 182 / 0.05);
 }
 
 .widget-container.collapsed {
@@ -1096,13 +1104,13 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 
 .widget-delete-btn {
   position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  width: 28px;
-  height: 28px;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
-  border: none;
-  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-white);
   cursor: pointer;
   font-size: 16px;
   color: var(--color-gray-500);
@@ -1114,6 +1122,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   opacity: 0;
   pointer-events: none;
   transform: scale(0.8);
+  box-shadow: var(--shadow-sm);
 }
 
 .widget-container:hover .widget-delete-btn {
@@ -1161,20 +1170,49 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 .widget-title-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .view-mode-toggle {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-gray-500);
   transition: all var(--transition-fast);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.edit-mode-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-gray-500);
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-md);
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.view-mode-toggle:hover,
+.edit-mode-toggle:hover {
+  background: var(--color-gray-100);
+  color: var(--color-primary);
+}
+
+.view-mode-toggle.active,
+.edit-mode-toggle.active {
+  background: oklch(0.58 0.11 182 / 0.1);
+  color: var(--color-primary);
 }
 
 .view-mode-toggle:hover {
@@ -1266,7 +1304,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   align-items: center;
   padding: var(--space-5) var(--space-5);
   border-bottom: 1px solid var(--color-gray-200);
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  background: oklch(0.58 0.11 182 / 0.03);
 }
 
 .modal-header h3 {
@@ -1371,7 +1409,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .modal-option:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: oklch(0.58 0.11 182 / 0.08);
   border-color: var(--color-primary);
   transform: translateX(var(--space-2));
 }
@@ -1384,7 +1422,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: oklch(0.58 0.11 182 / 0.08);
 }
 
 .modal-option:hover .modal-option-icon {
@@ -1431,7 +1469,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 
 .form-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 .form-input::placeholder {
@@ -1468,7 +1506,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 
 .setting-select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 /* ============ 引擎列表 ============ */
@@ -1547,7 +1585,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 
 .add-engine-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 .add-engine-btn {
@@ -1590,7 +1628,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-white);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 .task-input button {
@@ -1635,7 +1673,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .task-item:hover {
-  background: rgba(102, 126, 234, 0.05);
+  background: oklch(0.58 0.11 182 / 0.05);
 }
 
 .task-item input[type="checkbox"] {
@@ -1700,18 +1738,18 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .task-edit-btn {
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
-  padding: var(--space-1);
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   opacity: 0;
-  width: 22px;
-  height: 22px;
+  min-width: 32px;
+  min-height: 32px;
 }
 
 .task-item:hover .task-edit-btn {
@@ -1723,7 +1761,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .task-edit-btn.task-edit:hover {
-  background: rgba(102, 126, 234, 0.15);
+  background: oklch(0.58 0.11 182 / 0.12);
   transform: scale(1.1);
 }
 
@@ -1813,16 +1851,17 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .weather-city {
-  padding: var(--space-1) var(--space-3);
+  padding: 8px 16px;
   background: oklch(0.97 0.005 180);
   border-radius: var(--radius-full);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   color: var(--color-gray-600);
   transition: all var(--transition-fast) var(--ease-out);
   border: 1px solid transparent;
   font-weight: var(--font-medium);
   letter-spacing: 0.01em;
+  min-height: 36px;
 }
 
 .weather-city:hover {
@@ -1842,11 +1881,11 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
-  border: none;
-  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-white);
   color: var(--color-gray-500);
   display: flex;
   align-items: center;
@@ -1864,7 +1903,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .weather-add-city {
-  padding: var(--space-2) var(--space-3);
+  padding: 8px 16px;
   background: var(--color-gray-100);
   border: none;
   border-radius: var(--radius-lg);
@@ -1875,6 +1914,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   justify-content: center;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  min-height: 36px;
 }
 
 .weather-add-city:hover {
@@ -1904,7 +1944,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 
 .weather-add-city-input input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 .weather-add-city-input .btn-confirm {
@@ -2048,7 +2088,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .rss-tab {
-  padding: var(--space-1) var(--space-3);
+  padding: 8px 16px;
   border: 1px solid oklch(0 0 0 / 0.06);
   border-radius: var(--radius-full);
   background: oklch(0.97 0.005 180);
@@ -2060,6 +2100,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   transition: all var(--transition-fast) var(--ease-out);
   flex-shrink: 0;
   letter-spacing: 0.01em;
+  min-height: 36px;
 }
 
 .rss-tab:hover {
@@ -2102,7 +2143,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 .rss-refresh-btn {
   background: transparent;
   border: none;
-  padding: var(--space-1);
+  padding: 8px;
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--color-gray-400);
@@ -2111,6 +2152,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   justify-content: center;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .rss-refresh-btn:hover:not(:disabled) {
@@ -2126,7 +2169,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 .rss-delete-btn {
   background: transparent;
   border: none;
-  padding: var(--space-1);
+  padding: 8px;
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--color-gray-400);
@@ -2135,6 +2178,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   justify-content: center;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .rss-delete-btn:hover {
@@ -2242,7 +2287,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-white);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 3px oklch(0.58 0.11 182 / 0.15);
 }
 
 .add-rss-form button {
@@ -2373,20 +2418,20 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   position: relative;
 }
 
-/* 云图模式基础样式 - 带图标 */
+/* 云图模式基础样式 - 药丸形状 */
 .link-item-wrapper.cloud .link-item {
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 247, 250, 0.98) 100%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(102, 126, 234, 0.12);
+  border-radius: 999px;
+  background: var(--color-white);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
+  border: 1px solid oklch(0.58 0.11 182 / 0.1);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .link-item-wrapper.cloud .link-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.25), 0 4px 8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-3px) scale(1.02);
-  border-color: rgba(102, 126, 234, 0.3);
+  background: oklch(0.58 0.11 182 / 0.08);
+  box-shadow: 0 4px 12px oklch(0.58 0.11 182 / 0.15), 0 2px 4px oklch(0 0 0 / 0.06);
+  transform: translateY(-2px) scale(1.02);
+  border-color: oklch(0.58 0.11 182 / 0.25);
 }
 
 /* 书签链接基础样式 */
@@ -2409,7 +2454,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .link-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: oklch(0.58 0.11 182 / 0.08);
   color: var(--color-gray-800);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
@@ -2426,11 +2471,12 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   margin-right: 6px;
 }
 
-/* 云图模式 - 再加大图标尺寸，字母更醒目 */
+/* 云图模式 - 精致小图标 */
 .link-item-wrapper.cloud .link-icon {
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
+  border-radius: 4px;
 }
 
 .link-item .link-name {
@@ -2477,9 +2523,9 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .link-item-wrapper.grid .link-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
-  border-color: rgba(102, 126, 234, 0.2);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  background: oklch(0.58 0.11 182 / 0.06);
+  border-color: oklch(0.58 0.11 182 / 0.2);
+  box-shadow: 0 4px 12px oklch(0.58 0.11 182 / 0.12);
   transform: translateY(-2px);
 }
 
@@ -2522,8 +2568,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 /* 书签操作 */
 .link-actions {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -12px;
+  right: -4px;
   display: flex;
   gap: var(--space-1);
   opacity: 0;
@@ -2540,9 +2586,9 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 .link-actions .link-edit,
 .link-actions .link-delete {
   background: var(--color-white);
-  border: none;
+  border: 1px solid var(--color-gray-200);
   cursor: pointer;
-  padding: var(--space-1);
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2550,6 +2596,8 @@ h1, h2, h3, h4, h5, h6, .widget-title {
   flex-shrink: 0;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
+  min-width: 32px;
+  min-height: 32px;
 }
 
 .link-actions .link-edit {
@@ -2577,16 +2625,18 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 /* 编辑模式下，云图模式操作按钮在右侧 */
 .link-item-wrapper.cloud.editing .link-actions {
   position: absolute;
-  right: -8px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
+  gap: 4px;
 }
 
 /* 编辑模式下，网格模式操作按钮在右上角 */
 .link-item-wrapper.grid.editing .link-actions {
   position: absolute;
-  right: 4px;
-  top: 4px;
+  right: 6px;
+  top: 6px;
+  gap: 4px;
 }
 
 /* 添加书签按钮 */
@@ -2606,7 +2656,7 @@ h1, h2, h3, h4, h5, h6, .widget-title {
 }
 
 .add-link-btn:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: oklch(0.58 0.11 182 / 0.08);
   border-color: var(--color-primary);
   color: var(--color-primary);
   transform: translateY(-2px);

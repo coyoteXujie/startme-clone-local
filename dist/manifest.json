@@ -1,21 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "StartMe - 自定义起始页",
+  "name": "StartMe - Custom New Tab",
   "version": "1.2.0",
-  "description": "美观实用的自定义起始页，支持标签页、RSS、书签、任务、天气、番茄钟。本地存储，无需登录。",
+  "description": "A beautiful and practical custom new tab page supporting multi-tabs, bookmarks, RSS feeds, tasks, weather, and pomodoro timer. All data stored locally, no login required.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
   "permissions": [
     "storage",
-    "geolocation",
-    "tabs"
+    "geolocation"
   ],
   "host_permissions": [
     "https://api.open-meteo.com/*",
     "https://api.rss2json.com/*",
-    "https://favicon.yandex.net/*",
-    "https://www.google.com/s2/*"
+    "https://icon.horse/*",
+    "https://favicon.im/*"
   ],
   "icons": {
     "16": "icons/icon16.svg",
@@ -30,7 +29,5 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:;"
-  },
-  "homepage_url": "https://github.com/YOUR_USERNAME/startme-local-clone",
-  "author": "Your Name"
+  }
 }
