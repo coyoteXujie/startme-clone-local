@@ -12,6 +12,9 @@ node_modules
 dist-ssr
 *.local
 
+# Build output
+dist
+
 # IDE
 .vscode/*
 !.vscode/extensions.json
@@ -27,3 +30,10 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Archives
+*.zip
+*.tar.gz
+
+# OS
+Thumbs.db

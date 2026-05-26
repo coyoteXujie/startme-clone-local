@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy - StartMe Chrome Extension</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #333; background: #f8f9fa; padding: 20px; }
+  .container { max-width: 720px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px 48px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #00809d; margin-bottom: 4px; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+  h2 { font-size: 18px; color: #2932e1; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #eef2f7; }
+  h3 { font-size: 15px; color: #444; margin: 16px 0 8px; }
+  p { margin: 8px 0; font-size: 14.5px; }
+  ul { margin: 8px 0 8px 24px; font-size: 14.5px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border: 1px solid #e8ecf1; }
+  th { background: #f4f7fa; font-weight: 600; color: #333; }
+  td { color: #555; }
+  code { background: #f0f3f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #e83e8c; }
+  .highlight { background: linear-gradient(135deg, #e8f7fa, #f0f4ff); border-left: 3px solid #00809d; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 14px; }
+  .last-updated { text-align: center; color: #aaa; font-size: 13px; margin-top: 36px; padding-top: 20px; border-top: 1px solid #eee; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Privacy Policy</h1>
+<p class="subtitle">StartMe - Custom New Tab (Chrome Extension)</p>
+
+<div class="highlight">
+  <strong>Summary:</strong> StartMe is designed with privacy as a core principle. All user data is stored locally on your device. We do not collect, transmit, or store any personal data on remote servers.
+</div>
+
+<h2>1. Information We Collect</h2>
+
+<p><strong>StartMe does NOT collect any personal data.</strong></p>
+
+<p>This extension operates entirely locally on your browser. Here is what is stored and where:</p>
+
+<table>
+  <tr>
+    <th>Data Type</th>
+    <th>Storage Location</th>
+    <th>Purpose</th>
+  </tr>
+  <tr>
+    <td>Bookmarks / Links</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>Saved bookmarks displayed in widget</td>
+  </tr>
+  <tr>
+    <td>RSS Feed URLs</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>List of subscribed RSS sources</td>
+  </tr>
+  <tr>
+    <td>Tasks / To-dos</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>User task list</td>
+  </tr>
+  <tr>
+    <td>Weather Cities</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>Cities for weather display</td>
+  </tr>
+  <tr>
+    <td>Tab Configuration</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>Tab names, widget layout, settings</td>
+  </tr>
+  <tr>
+    <td>Background Image</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>Custom background image (base64 or URL)</td>
+  </tr>
+  <tr>
+    <td>Search Engine Preference</td>
+    <td><code>chrome.storage.local</code></td>
+    <td>Selected search engine</td>
+  </tr>
+</table>
+
+<h2>2. Permissions Used & Why</h2>
+
+<p>StartMe requests the following permissions:</p>
+
+<h3>storage</h3>
+<p>Used to save all your data (bookmarks, tasks, tabs, settings, etc.) locally on your device via <code>chrome.storage.local</code>. No data is sent to any external server.</p>
+
+<h3>geolocation</h3>
+<p>Used only for the Weather widget to detect your current city for displaying local weather information. Location data is:</p>
+<ul>
+  <li>Requested once when the weather widget is first used</li>
+  <li>Never stored or transmitted to any server other than the weather API</li>
+  <li>Only sent to <strong>Open-Meteo API</strong> (open-meteo.com) as coordinate parameters</li>
+  <li>You can deny this permission — the weather widget will simply require manual city selection</li>
+</ul>
+
+<h3>host_permissions (Network Access)</h3>
+<p>The extension connects to the following services for specific features:</p>
+
+<table>
+  <tr>
+    <th>Domain</th>
+    <th>Purpose</th>
+    <th>Data Sent</th>
+  </tr>
+  <tr>
+    <td><code>api.open-meteo.com</code></td>
+    <td>Weather data (temperature, forecast)</td>
+    <td>Latitude & longitude coordinates only</td>
+  </tr>
+  <tr>
+    <td><code>api.rss2json.com</code></td>
+    <td>Convert RSS feeds to JSON format</td>
+    <td>RSS feed URL</td>
+  </tr>
+  <tr>
+    <td><code>icon.horse</code></td>
+    <td>Fetch website favicon icons</td>
+    <td>Website domain name</td>
+  </tr>
+  <tr>
+    <td><code>favicon.im</code></td>
+    <td>Fallback favicon service</td>
+    <td>Website domain name</td>
+  </tr>
+</table>
+
+<p><strong>No authentication tokens, passwords, or personal identifiers are ever transmitted.</strong></p>
+
+<h2>3. Third-Party Services</h2>
+
+<p>StartMe integrates with the following third-party services:</p>
+
+<h3>Open-Meteo (Weather)</h3>
+<ul>
+  <li><strong>Service:</strong> Free, open-source weather API</li>
+  <li><strong>Data:</strong> Only receives geographic coordinates (latitude/longitude)</li>
+  <li><strong>Privacy Policy:</strong> <a href="https://open-meteo.com/en/docs#privacy" target="_blank">open-meteo.com/en/docs#privacy</a></li>
+  <li><strong>No registration or API key required</strong></li>
+</ul>
+
+<h3>rss2json.com (RSS Parsing)</h3>
+<ul>
+  <li><strong>Service:</strong> Converts XML RSS feeds to readable JSON</li>
+  <li><strong>Data:</strong> Receives the RSS feed URL you add</li>
+  <li><strong>Privacy Policy:</strong> Refer to their website terms</li>
+  <li><strong>Note:</strong> Free tier has monthly request limits</li>
+</ul>
+
+<h3>icon.horse / favicon.im (Favicons)</h3>
+<ul>
+  <li><strong>Service:</strong> Website favicon retrieval</li>
+  <li><strong>Data:</strong> Receives domain names of bookmarked sites</li>
+  <li><strong>Purpose:</strong> Display site icons next to bookmarks</li>
+</ul>
+
+<h2>4. Data Storage & Security</h2>
+
+<ul>
+  <li>All user data is stored in <code>chrome.storage.local</code>, which is encrypted by Chrome's storage mechanism</li>
+  <li>Data never leaves your browser unless you explicitly use the Export feature</li>
+  <li>The Export feature creates a downloadable JSON file — you control where it is saved</li>
+  <li>Uninstalling the extension permanently deletes all stored data</li>
+  <li>No cookies, no tracking scripts, no analytics</li>
+</ul>
+
+<h2>5. Children's Privacy</h2>
+
+<p>StartMe does not knowingly collect any personal information from children under 13 years of age. The extension does not have features that target or collect data specifically from children.</p>
+
+<h2>6. Changes to This Policy</h2>
+
+<p>If we update this privacy policy, we will update the "Last updated" date below and revise this document in the extension's repository.</p>
+
+<h2>7. Contact</h2>
+
+<p>If you have questions about this privacy policy or how your data is handled, please contact us through one of the following methods:</p>
+
+<ul>
+  <li>Open an issue on our GitHub repository</li>
+  <li>Contact through the Chrome Web Store "Support" link</li>
+</ul>
+
+<p class="last-updated">Last updated: May 20, 2026</p>
+
+</div>
+</body>
+</html>
