@@ -17,39 +17,6 @@
 
 <a id="中文"></a>
 
-## 📸 界面预览
-
-<table>
-  <tr>
-    <td align="center"><b>🏠 整体首页</b></td>
-    <td align="center"><b>🔍 搜索引擎切换</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshot-home.png" alt="首页" width="480"/></td>
-    <td><img src="docs/screenshot-search.png" alt="搜索" width="480"/></td>
-  </tr>
-  <tr>
-    <td align="center"><b>🔖 书签云图模式</b></td>
-    <td align="center"><b>📖 书签网格模式</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshot-cloud.png" alt="云图" width="480"/></td>
-    <td><img src="docs/screenshot-grid.png" alt="网格" width="480"/></td>
-  </tr>
-  <tr>
-    <td align="center"><b>📡 RSS 订阅</b></td>
-    <td align="center"><b>☀️ 天气 + 🍅 番茄钟</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshot-rss.png" alt="RSS" width="480"/></td>
-    <td><img src="docs/screenshot-weather.png" alt="天气" width="480"/></td>
-  </tr>
-</table>
-
-> ⚠️ 截图需要你自行截取后放入 `docs/` 目录，详见 [截图指南](#截图指南)
-
----
-
 ## ✨ 功能特性
 
 ### 🔍 智能搜索
@@ -234,7 +201,6 @@ startme-clone-local/
 │   │   └── index.css              # 主样式文件
 │   ├── App.tsx                    # 主应用组件
 │   └── newtab.tsx                 # 入口文件
-├── docs/                          # 截图目录
 ├── generate-icons.js              # PNG 图标生成脚本
 ├── privacy-policy.html            # 隐私政策页面
 ├── STORE-LISTING.md               # Chrome 商店描述文案
@@ -337,24 +303,6 @@ A: 百度/Bing/Google 使用内联 SVG 图标，不依赖外部服务。自定�
 3. 填写商店信息（文案见 `STORE-LISTING.md`）
 4. 托管隐私政策（推送到 GitHub 后开启 GitHub Pages）
 5. 提交审核（通常 1-3 天）
-
----
-
-## 📸 截图指南
-
-要生成 README 中引用的截图，请按以下步骤操作：
-
-1. 在 Chrome 中加载扩展（`dist` 目录）
-2. 按 `F11` 全屏模式
-3. 使用 `Win + Shift + S` 截取以下页面：
-   - `screenshot-home.png` — 整体首页效果
-   - `screenshot-search.png` — 搜索引擎切换下拉
-   - `screenshot-cloud.png` — 书签云图模式
-   - `screenshot-grid.png` — 书签网格模式
-   - `screenshot-rss.png` — RSS 订阅展示
-   - `screenshot-weather.png` — 天气 + 番茄钟
-4. 在项目根目录创建 `docs/` 文件夹
-5. 将截图保存到 `docs/` 目录
 
 ---
 
