@@ -10,7 +10,7 @@ interface DevToolboxWidgetProps {
 
 type ToolTab = 'json' | 'base64' | 'timestamp';
 
-const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChange, onDelete, onToggleCollapsed }) => {
+const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>(widget.data?.activeTab || 'json');
 
   const [jsonInput, setJsonInput] = useState('');
@@ -122,16 +122,11 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
   ];
 
   return (
-    <div className="widget-container">
+    <>
       <div className="widget-header">
         <span className="widget-title" onClick={onToggleCollapsed}>
           {widget.title || '开发者工具箱'}
         </span>
-        <div className="widget-header-actions">
-          <button className="widget-action-btn" onClick={onDelete} title="删除">
-            ×
-          </button>
-        </div>
       </div>
       {!widget.collapsed && (
         <div className="widget-body">
@@ -240,7 +235,7 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
           )}
         </div>
       )}
-    </div>
+    </>
   );
 };
 

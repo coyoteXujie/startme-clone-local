@@ -8,11 +8,10 @@ interface NotesWidgetProps {
   onToggleCollapsed: () => void;
 }
 
-const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onDelete, onToggleCollapsed }) => {
+const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const content = widget.data?.content || '';
   const [localContent, setLocalContent] = useState(content);
   const [saved, setSaved] = useState(true);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -38,7 +37,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onDelet
   }, []);
 
   return (
-    <div className="widget-container">
+    <>
       <div className="widget-header">
         <span className="widget-title" onClick={onToggleCollapsed}>
           {widget.title || '便签'}
@@ -46,15 +45,11 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onDelet
         <div className="widget-header-actions">
           {!saved && <span className="notes-saving">保存中...</span>}
           {saved && localContent && <span className="notes-saved">已保存</span>}
-          <button className="widget-action-btn" onClick={onDelete} title="删除">
-            ×
-          </button>
         </div>
       </div>
       {!widget.collapsed && (
         <div className="widget-body">
           <textarea
-            ref={textareaRef}
             className="notes-textarea"
             placeholder="随手记点什么..."
             value={localContent}
@@ -63,7 +58,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onDelet
           />
         </div>
       )}
-    </div>
+    </>
   );
 };
 
