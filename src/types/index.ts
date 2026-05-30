@@ -13,7 +13,7 @@ import React from 'react';
  * - links: 书签链接
  * - pomodoro: 番茄钟
  */
-export type WidgetType = 'rss' | 'tasks' | 'weather' | 'links' | 'pomodoro';
+export type WidgetType = 'rss' | 'tasks' | 'weather' | 'links' | 'pomodoro' | 'notes' | 'devtoolbox';
 
 /**
  * 小组件基础接口

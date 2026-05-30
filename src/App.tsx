@@ -9,6 +9,8 @@ import WeatherWidget from './components/widgets/WeatherWidget';
 import RSSWidget from './components/widgets/RSSWidget';
 import LinksWidget from './components/widgets/LinksWidget';
 import PomodoroWidget from './components/widgets/PomodoroWidget';
+import NotesWidget from './components/widgets/NotesWidget';
+import DevToolboxWidget from './components/widgets/DevToolboxWidget';
 import AddWidgetModal from './components/AddWidgetModal';
 import ToastContainer from './components/ToastContainer';
 import { Search, Setting, Pic, Close, Plus, MenuFold, Delete, Drag, Download, Upload } from '@icon-park/react';
@@ -56,6 +58,10 @@ const App: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [showAddWidget, setShowAddWidget] = useState(false);
+  const [showAddTabInput, setShowAddTabInput] = useState(false);
+  const [newTabName, setNewTabName] = useState('');
+  const [newWidgetTitle, setNewWidgetTitle] = useState('');
+  const [pendingWidgetType, setPendingWidgetType] = useState<Widget['type'] | null>(null);
   const [bgImage, setBgImage] = useState<string>('');
   const [searchEngine, setSearchEngine] = useState<string>('baidu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +121,8 @@ const App: React.FC = () => {
         setShowEngineSettings(false);
         setShowHeaderMenu(false);
         setShowAddWidget(false);
+        setShowAddTabInput(false);
+        setPendingWidgetType(null);
       },
     },
     {
@@ -170,7 +178,6 @@ const App: React.FC = () => {
     if (storedBgImage) {
       setBgImage(storedBgImage);
     } else {
-      // 如果没有自定义背景，使用默认背景
       setBgImage(defaultBg);
     }
   };
@@ -178,12 +185,16 @@ const App: React.FC = () => {
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   const handleAddTab = async () => {
-    const name = prompt('请输入标签页名称:');
-    if (!name) return;
+    setShowAddTabInput(true);
+    setNewTabName('');
+  };
+
+  const handleConfirmAddTab = async () => {
+    if (!newTabName.trim()) return;
 
     const newTab: Tab = {
       id: `tab-${Date.now()}`,
-      name,
+      name: newTabName.trim(),
       columns: [
         { id: `col-1-${Date.now()}`, widgets: [] },
         { id: `col-2-${Date.now()}`, widgets: [] },
@@ -193,12 +204,12 @@ const App: React.FC = () => {
       createdAt: Date.now(),
     };
 
-    // 本地先更新
     setTabs([...tabs, newTab]);
     setActiveTabId(newTab.id);
-    success(`已创建标签页 "${name}"`);
+    setShowAddTabInput(false);
+    setNewTabName('');
+    success(`已创建标签页 "${newTab.name}"`);
 
-    // 异步保存
     storage.addTab(newTab).catch(err => {
       console.error('保存标签页失败:', err);
       loadData();
@@ -229,12 +240,18 @@ const App: React.FC = () => {
   };
 
   const handleAddWidget = async (widgetType: Widget['type']) => {
-    const title = prompt('请输入小组件标题:') || widgetType;
+    setPendingWidgetType(widgetType);
+    setNewWidgetTitle(widgetType === 'tasks' ? '任务' : widgetType === 'weather' ? '天气' : widgetType === 'rss' ? '新闻源' : widgetType === 'links' ? '书签' : widgetType === 'pomodoro' ? '番茄钟' : widgetType === 'notes' ? '便签' : '开发者工具箱');
+  };
+
+  const handleConfirmAddWidget = async () => {
+    if (!pendingWidgetType) return;
+    const title = newWidgetTitle.trim() || pendingWidgetType;
     const newWidget: Widget = {
       id: `widget-${Date.now()}`,
-      type: widgetType,
+      type: pendingWidgetType,
       title,
-      data: getDefaultWidgetData(widgetType),
+      data: getDefaultWidgetData(pendingWidgetType),
     };
 
     if (activeTab && activeAddColumnId) {
@@ -244,6 +261,8 @@ const App: React.FC = () => {
     }
     setActiveAddColumnId(null);
     setShowAddWidget(false);
+    setPendingWidgetType(null);
+    setNewWidgetTitle('');
   };
 
   const getDefaultWidgetData = (type: Widget['type']) => {
@@ -258,6 +277,10 @@ const App: React.FC = () => {
         return { links: [] };
       case 'pomodoro':
         return { timeLeft: 25 * 60, isRunning: false, isBreak: false, cycles: 0 };
+      case 'notes':
+        return { content: '' };
+      case 'devtoolbox':
+        return { activeTab: 'json' };
       default:
         return {};
     }
@@ -265,9 +288,12 @@ const App: React.FC = () => {
 
   const handleDeleteWidget = async (widgetId: string) => {
     if (activeTab) {
+      const widget = activeTab.columns.flatMap(c => c.widgets).find(w => w.id === widgetId);
+      const title = widget?.title || '组件';
+      if (!confirm(`确定要删除「${title}」吗？`)) return;
       await storage.deleteWidget(activeTabId, widgetId);
       await loadData();
-      success('小组件已删除');
+      success(`已删除「${title}」`);
     }
   };
 
@@ -761,6 +787,10 @@ const App: React.FC = () => {
         />;
       case 'pomodoro':
         return <PomodoroWidget {...props} />;
+      case 'notes':
+        return <NotesWidget {...props} />;
+      case 'devtoolbox':
+        return <DevToolboxWidget {...props} />;
       default:
         return null;
     }
@@ -902,9 +932,14 @@ const App: React.FC = () => {
           <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
+            showAddTabInput={showAddTabInput}
+            newTabName={newTabName}
             onTabClick={setActiveTabId}
             onAddTab={handleAddTab}
             onDeleteTab={handleDeleteTab}
+            onNewTabNameChange={setNewTabName}
+            onConfirmAddTab={handleConfirmAddTab}
+            onCancelAddTab={() => { setShowAddTabInput(false); setNewTabName(''); }}
           />
         </div>
         <div className="header-right">
@@ -1053,7 +1088,13 @@ const App: React.FC = () => {
           onClose={() => {
             setActiveAddColumnId(null);
             setShowAddWidget(false);
+            setPendingWidgetType(null);
+            setNewWidgetTitle('');
           }}
+          pendingWidgetType={pendingWidgetType}
+          newWidgetTitle={newWidgetTitle}
+          onNewWidgetTitleChange={setNewWidgetTitle}
+          onConfirmAddWidget={handleConfirmAddWidget}
         />
       )}
 

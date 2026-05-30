@@ -582,9 +582,6 @@ export const storage = {
     });
   },
 
-  /**
-   * 获取默认搜索引擎
-   */
   async getSearchEngine(): Promise<string> {
     const data = await this.getData();
     return data.searchEngine || 'baidu';
