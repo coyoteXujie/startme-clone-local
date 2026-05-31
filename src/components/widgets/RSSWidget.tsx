@@ -141,10 +141,12 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
 
   return (
     <div className="rss-widget widget-content">
-      <h3 className="widget-title" onClick={onToggleCollapsed}>
-        <span>{widget.title}</span>
-        <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
-      </h3>
+      <div className="widget-header">
+        <span className="widget-title" onClick={onToggleCollapsed}>
+          <span>{widget.title}</span>
+          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
+        </span>
+      </div>
       {widget.collapsed ? (
         <div className="collapsed-content">
           <span className="collapsed-summary">{feeds.length} 个源，{getTotalItems()} 篇文章</span>

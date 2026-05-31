@@ -91,10 +91,12 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
 
   return (
     <div className="task-widget widget-content">
-      <h3 className="widget-title" onClick={onToggleCollapsed}>
-        <span>{widget.title}</span>
-        <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
-      </h3>
+      <div className="widget-header">
+        <span className="widget-title" onClick={onToggleCollapsed}>
+          <span>{widget.title}</span>
+          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
+        </span>
+      </div>
       {widget.collapsed ? (
         <div className="collapsed-content">
           <span className="collapsed-summary">{tasks.filter(t => !t.completed).length} 个未完成任务</span>

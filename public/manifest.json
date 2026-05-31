@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "StartMe - Custom New Tab",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A beautiful and practical custom new tab page supporting multi-tabs, bookmarks, RSS feeds, tasks, weather, and pomodoro timer. All data stored locally, no login required.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
@@ -28,6 +28,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:;"
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; connect-src https://api.open-meteo.com https://api.rss2json.com https://icon.horse https://favicon.im;"
   }
 }

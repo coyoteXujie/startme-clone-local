@@ -124,10 +124,12 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
 
   return (
     <div className="widget-content">
-      <h3 className="widget-title" onClick={onToggleCollapsed}>
-        <span>{widget.title || '番茄钟'}</span>
-        <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
-      </h3>
+      <div className="widget-header">
+        <span className="widget-title" onClick={onToggleCollapsed}>
+          <span>{widget.title || '番茄钟'}</span>
+          <ChevronDown className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+        </span>
+      </div>
 
       {widget.collapsed ? (
         <div className="collapsed-content">

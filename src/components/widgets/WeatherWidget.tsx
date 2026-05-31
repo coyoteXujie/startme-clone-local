@@ -178,20 +178,22 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
   return (
     <div className="weather-widget widget-content">
-      <div className="weather-widget-header">
-        <h3 className="widget-title" onClick={onToggleCollapsed}>
+      <div className="widget-header">
+        <span className="widget-title" onClick={onToggleCollapsed}>
           <span>{widget.title}</span>
           <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
-        </h3>
-        {cities.length > 1 && (
-          <button
-            className="weather-city-remove"
-            onClick={() => handleRemoveCity(activeCity)}
-            title={`移除${activeCity}`}
-          >
-            <Close size={14} />
-          </button>
-        )}
+        </span>
+        <div className="widget-header-actions">
+          {cities.length > 1 && (
+            <button
+              className="weather-city-remove"
+              onClick={() => handleRemoveCity(activeCity)}
+              title={`移除${activeCity}`}
+            >
+              <Close size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {widget.collapsed ? (

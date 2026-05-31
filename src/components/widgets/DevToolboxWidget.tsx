@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Code, LockOne, Timer, Copy, CheckOne, Refresh } from '@icon-park/react';
 
 interface DevToolboxWidgetProps {
   widget: any;
@@ -12,6 +13,7 @@ type ToolTab = 'json' | 'base64' | 'timestamp';
 
 const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>(widget.data?.activeTab || 'json');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [jsonInput, setJsonInput] = useState('');
   const [jsonOutput, setJsonOutput] = useState('');
@@ -65,7 +67,7 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
         setBase64Output(btoa(binary));
       }
     } catch {
-      setBase64Output('⚠️ 无效的 Base64 输入');
+      setBase64Output('');
     }
   }, [base64Input, base64Mode]);
 
@@ -79,7 +81,7 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
       if (!isNaN(d.getTime())) {
         setTsOutput(`Unix: ${Math.floor(d.getTime() / 1000)}\n毫秒: ${d.getTime()}\n\n${d.toLocaleString('zh-CN', { hour12: false })}`);
       } else {
-        setTsOutput('⚠️ 无法识别的时间格式');
+        setTsOutput('');
       }
       return;
     }
@@ -93,7 +95,7 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
 
     const d = new Date(ts);
     if (isNaN(d.getTime())) {
-      setTsOutput('⚠️ 无效的时间戳');
+      setTsOutput('');
       return;
     }
 
@@ -111,21 +113,34 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
     );
   }, [tsInput]);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    }).catch(() => {});
   };
 
-  const tabs: { key: ToolTab; label: string }[] = [
-    { key: 'json', label: 'JSON' },
-    { key: 'base64', label: 'Base64' },
-    { key: 'timestamp', label: '时间戳' },
+  const tabs: { key: ToolTab; label: string; icon: React.ReactNode }[] = [
+    { key: 'json', label: 'JSON', icon: <Code size={13} /> },
+    { key: 'base64', label: 'Base64', icon: <LockOne size={13} /> },
+    { key: 'timestamp', label: '时间戳', icon: <Timer size={13} /> },
   ];
+
+  const CopyBtn = ({ text, id }: { text: string; id: string }) => (
+    <button
+      className={`devtoolbox-btn devtoolbox-btn-copy ${copiedKey === id ? 'copied' : ''}`}
+      onClick={() => copyToClipboard(text, id)}
+    >
+      {copiedKey === id ? <><CheckOne size={12} /> 已复制</> : <><Copy size={12} /> 复制</>}
+    </button>
+  );
 
   return (
     <>
       <div className="widget-header">
         <span className="widget-title" onClick={onToggleCollapsed}>
-          {widget.title || '开发者工具箱'}
+          <Code size={15} className="widget-title-icon" />
+          <span>{widget.title || '开发者工具箱'}</span>
         </span>
       </div>
       {!widget.collapsed && (
@@ -137,99 +152,130 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
                 className={`devtoolbox-tab ${activeTab === tab.key ? 'active' : ''}`}
                 onClick={() => handleTabChange(tab.key)}
               >
-                {tab.label}
+                {tab.icon}
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
 
           {activeTab === 'json' && (
             <div className="devtoolbox-panel">
-              <textarea
-                className="devtoolbox-input"
-                placeholder='粘贴 JSON，如 {"key": "value"}'
-                value={jsonInput}
-                onChange={e => setJsonInput(e.target.value)}
-                spellCheck={false}
-                rows={5}
-              />
-              <div className="devtoolbox-actions">
-                <button className="devtoolbox-btn" onClick={handleJsonFormat}>格式化</button>
-                <button className="devtoolbox-btn" onClick={handleJsonMinify}>压缩</button>
-                {jsonOutput && (
-                  <button className="devtoolbox-btn devtoolbox-btn-copy" onClick={() => copyToClipboard(jsonOutput)}>
-                    复制结果
-                  </button>
-                )}
+              <div className="devtoolbox-field">
+                <label className="devtoolbox-label">输入</label>
+                <textarea
+                  className="devtoolbox-input"
+                  placeholder='粘贴 JSON，如 {"key": "value"}'
+                  value={jsonInput}
+                  onChange={e => setJsonInput(e.target.value)}
+                  spellCheck={false}
+                  rows={4}
+                />
               </div>
-              {jsonError && <div className="devtoolbox-error">{jsonError}</div>}
+              <div className="devtoolbox-actions">
+                <button className="devtoolbox-btn devtoolbox-btn-primary" onClick={handleJsonFormat}>
+                  <Refresh size={12} /> 格式化
+                </button>
+                <button className="devtoolbox-btn" onClick={handleJsonMinify}>
+                  压缩
+                </button>
+                {jsonOutput && <CopyBtn text={jsonOutput} id="json" />}
+              </div>
+              {jsonError && (
+                <div className="devtoolbox-error">
+                  <span className="devtoolbox-error-icon">⚠</span>
+                  {jsonError}
+                </div>
+              )}
               {jsonOutput && (
-                <pre className="devtoolbox-output">{jsonOutput}</pre>
+                <div className="devtoolbox-field">
+                  <label className="devtoolbox-label">输出</label>
+                  <pre className="devtoolbox-output">{jsonOutput}</pre>
+                </div>
               )}
             </div>
           )}
 
           {activeTab === 'base64' && (
             <div className="devtoolbox-panel">
-              <div className="devtoolbox-actions">
+              <div className="devtoolbox-mode-toggle">
                 <button
-                  className={`devtoolbox-btn ${base64Mode === 'decode' ? 'active' : ''}`}
+                  className={`devtoolbox-mode-btn ${base64Mode === 'decode' ? 'active' : ''}`}
                   onClick={() => setBase64Mode('decode')}
                 >
-                  解码
+                  <LockOne size={13} /> 解码
                 </button>
                 <button
-                  className={`devtoolbox-btn ${base64Mode === 'encode' ? 'active' : ''}`}
+                  className={`devtoolbox-mode-btn ${base64Mode === 'encode' ? 'active' : ''}`}
                   onClick={() => setBase64Mode('encode')}
                 >
-                  编码
+                  <LockOne size={13} /> 编码
                 </button>
               </div>
-              <textarea
-                className="devtoolbox-input"
-                placeholder={base64Mode === 'decode' ? '粘贴 Base64 字符串' : '输入要编码的文本'}
-                value={base64Input}
-                onChange={e => setBase64Input(e.target.value)}
-                spellCheck={false}
-                rows={3}
-              />
+              <div className="devtoolbox-field">
+                <label className="devtoolbox-label">
+                  {base64Mode === 'decode' ? 'Base64 字符串' : '待编码文本'}
+                </label>
+                <textarea
+                  className="devtoolbox-input"
+                  placeholder={base64Mode === 'decode' ? '粘贴 Base64 字符串' : '输入要编码的文本'}
+                  value={base64Input}
+                  onChange={e => setBase64Input(e.target.value)}
+                  spellCheck={false}
+                  rows={3}
+                />
+              </div>
               <div className="devtoolbox-actions">
-                <button className="devtoolbox-btn" onClick={handleBase64Convert}>
-                  {base64Mode === 'decode' ? '解码' : '编码'}
+                <button className="devtoolbox-btn devtoolbox-btn-primary" onClick={handleBase64Convert}>
+                  <Refresh size={12} /> {base64Mode === 'decode' ? '解码' : '编码'}
                 </button>
-                {base64Output && !base64Output.startsWith('⚠️') && (
-                  <button className="devtoolbox-btn devtoolbox-btn-copy" onClick={() => copyToClipboard(base64Output)}>
-                    复制结果
-                  </button>
+                {base64Output && !base64Output.startsWith('⚠') && (
+                  <CopyBtn text={base64Output} id="base64" />
                 )}
               </div>
               {base64Output && (
-                <pre className="devtoolbox-output">{base64Output}</pre>
+                <div className="devtoolbox-field">
+                  <label className="devtoolbox-label">结果</label>
+                  <pre className="devtoolbox-output">{base64Output}</pre>
+                </div>
               )}
             </div>
           )}
 
           {activeTab === 'timestamp' && (
             <div className="devtoolbox-panel">
-              <input
-                className="devtoolbox-input devtoolbox-input-oneline"
-                type="text"
-                placeholder="输入时间戳或日期，如 1717000000 或 2025-01-01"
-                value={tsInput}
-                onChange={e => setTsInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleTimestampConvert()}
-                spellCheck={false}
-              />
+              <div className="devtoolbox-field">
+                <label className="devtoolbox-label">时间戳 / 日期</label>
+                <input
+                  className="devtoolbox-input devtoolbox-input-oneline"
+                  type="text"
+                  placeholder="输入时间戳或日期，如 1717000000"
+                  value={tsInput}
+                  onChange={e => setTsInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleTimestampConvert()}
+                  spellCheck={false}
+                />
+              </div>
               <div className="devtoolbox-actions">
-                <button className="devtoolbox-btn" onClick={handleTimestampConvert}>转换</button>
-                <button className="devtoolbox-btn" onClick={() => { setTsInput(String(Math.floor(Date.now() / 1000))); }}>
-                  当前秒
+                <button className="devtoolbox-btn devtoolbox-btn-primary" onClick={handleTimestampConvert}>
+                  <Refresh size={12} /> 转换
                 </button>
-                <button className="devtoolbox-btn" onClick={() => { setTsInput(String(Date.now())); }}>
-                  当前毫秒
-                </button>
+                <div className="devtoolbox-actions-group">
+                  <button className="devtoolbox-btn devtoolbox-btn-quick" onClick={() => { setTsInput(String(Math.floor(Date.now() / 1000))); }}>
+                    当前秒
+                  </button>
+                  <button className="devtoolbox-btn devtoolbox-btn-quick" onClick={() => { setTsInput(String(Date.now())); }}>
+                    当前毫秒
+                  </button>
+                </div>
               </div>
               {tsOutput && (
-                <pre className="devtoolbox-output">{tsOutput}</pre>
+                <div className="devtoolbox-field">
+                  <label className="devtoolbox-label">转换结果</label>
+                  <pre className="devtoolbox-output devtoolbox-output-ts">{tsOutput}</pre>
+                  <div className="devtoolbox-output-actions">
+                    <CopyBtn text={tsOutput} id="ts" />
+                  </div>
+                </div>
               )}
             </div>
           )}

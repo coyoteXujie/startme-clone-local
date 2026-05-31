@@ -199,9 +199,12 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
 
   return (
     <div className="links-widget widget-content">
-      <h3 className="widget-title" onClick={onToggleCollapsed}>
-        <span>{widget.title}</span>
-        <div className="widget-title-actions" onClick={(e) => e.stopPropagation()}>
+      <div className="widget-header">
+        <span className="widget-title" onClick={onToggleCollapsed}>
+          <span>{widget.title}</span>
+          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
+        </span>
+        <div className="widget-header-actions" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={toggleEditMode}
             className={`edit-mode-toggle ${isEditMode ? 'active' : ''}`}
@@ -216,9 +219,8 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
           >
             {viewMode === 'grid' ? <Cloud size={16} /> : <LayoutGrid size={16} />}
           </button>
-          <Down className="collapse-icon" size={16} style={{ transform: widget.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} colors={['currentColor', 'currentColor']} />
         </div>
-      </h3>
+      </div>
 
       {widget.collapsed ? (
         <div className="collapsed-content">

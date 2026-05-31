@@ -1,6 +1,6 @@
 {
   "name": "startme-local-clone",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A lightweight browser start page extension with custom tabs, RSS feeds, bookmarks, tasks, and weather - fully local storage",
   "private": false,
   "license": "MIT",
