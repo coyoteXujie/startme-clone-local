@@ -4,7 +4,7 @@ import { Edit, CheckOne } from '@icon-park/react';
 interface NotesWidgetProps {
   widget: any;
   tabId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: any) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
 }
@@ -16,39 +16,57 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onToggl
   const [justSaved, setJustSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingContentRef = useRef<string | null>(null);
+  const onDataChangeRef = useRef(onDataChange);
+
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange;
+  }, [onDataChange]);
 
   useEffect(() => {
     setLocalContent(content);
+    pendingContentRef.current = null;
   }, [content]);
+
+  const saveContent = useCallback((value: string, updateStatus: boolean = true) => {
+    return Promise.resolve(onDataChangeRef.current({ content: value }))
+      .then(() => {
+        if (!updateStatus) return;
+        pendingContentRef.current = null;
+        setSaved(true);
+        setJustSaved(true);
+        if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+        savedFlashTimerRef.current = setTimeout(() => setJustSaved(false), 2000);
+      })
+      .catch(() => {
+        if (!updateStatus) return;
+        setSaved(false);
+        setJustSaved(false);
+      });
+  }, []);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setLocalContent(val);
     setSaved(false);
     setJustSaved(false);
+    pendingContentRef.current = val;
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      Promise.resolve(onDataChange({ content: val }))
-        .then(() => {
-          setSaved(true);
-          setJustSaved(true);
-          if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
-          savedFlashTimerRef.current = setTimeout(() => setJustSaved(false), 2000);
-        })
-        .catch(() => {
-          setSaved(false);
-          setJustSaved(false);
-        });
+      saveContent(val);
     }, 500);
-  }, [onDataChange]);
+  }, [saveContent]);
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+      if (pendingContentRef.current !== null) {
+        void saveContent(pendingContentRef.current, false);
+      }
     };
-  }, []);
+  }, [saveContent]);
 
   const charCount = localContent.length;
   const lineCount = localContent ? localContent.split('\n').length : 0;

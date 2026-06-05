@@ -7,7 +7,7 @@ interface WeatherWidgetProps {
   widget: Widget;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: any) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }
 
@@ -102,17 +102,17 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   const [weatherError, setWeatherError] = useState('');
   const [showAddCity, setShowAddCity] = useState(false);
   const [newCity, setNewCity] = useState('');
+  const [savingCity, setSavingCity] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // 监听外部数据变化，同步更新本地状态
   useEffect(() => {
     if (widget.data.cities) {
-      setCities(widget.data.cities);
-      if (!widget.data.cities.includes(activeCity)) {
-        setActiveCity(widget.data.cities[0]);
-      }
+      const nextCities = widget.data.cities;
+      setCities(nextCities);
+      setActiveCity(prev => nextCities.includes(prev) ? prev : nextCities[0]);
     }
-  }, [widget.data.cities, activeCity]);
+  }, [widget.data.cities]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -182,7 +182,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
   const handleAddCity = async () => {
     const cityName = newCity.trim();
-    if (!cityName) return;
+    if (!cityName || savingCity) return;
     if (cities.includes(cityName)) {
       setActiveCity(cityName);
       setNewCity('');
@@ -190,23 +190,42 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       return;
     }
 
-    const updatedCities = [...cities, cityName];
-    setCities(updatedCities);
-    setActiveCity(cityName);
-    await onDataChange({ cities: updatedCities });
-    setNewCity('');
-    setShowAddCity(false);
+    setSavingCity(true);
+    setWeatherError('');
+    const validationController = new AbortController();
+    const timeoutId = setTimeout(() => validationController.abort(), 10000);
+    try {
+      await resolveCityCoords(cityName, validationController.signal);
+
+      const updatedCities = [...cities, cityName];
+      await onDataChange({ cities: updatedCities });
+      setCities(updatedCities);
+      setActiveCity(cityName);
+      setNewCity('');
+      setShowAddCity(false);
+    } catch (error: any) {
+      console.error('添加城市失败:', error);
+      setWeatherError(error.name === 'AbortError' ? '城市解析超时，请稍后重试' : error.message || '添加城市失败');
+    } finally {
+      clearTimeout(timeoutId);
+      setSavingCity(false);
+    }
   };
 
   const handleRemoveCity = async (cityToRemove: string) => {
     if (cities.length === 1) {
-      alert('至少保留一个城市');
+      setWeatherError('至少保留一个城市');
       return;
     }
     const updatedCities = cities.filter((c) => c !== cityToRemove);
-    setCities(updatedCities);
-    if (activeCity === cityToRemove) setActiveCity(updatedCities[0]);
-    await onDataChange({ cities: updatedCities });
+    try {
+      await onDataChange({ cities: updatedCities });
+      setCities(updatedCities);
+      if (activeCity === cityToRemove) setActiveCity(updatedCities[0]);
+    } catch (error: any) {
+      console.error('移除城市失败:', error);
+      setWeatherError(error.message || '移除城市失败');
+    }
   };
 
   const renderWeatherIcon = (iconName: string, size: number = 24) => {
@@ -275,10 +294,11 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
                 value={newCity}
                 onChange={(e) => setNewCity(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCity()}
+                disabled={savingCity}
                 autoFocus
                 onBlur={() => !newCity && setShowAddCity(false)}
               />
-              <button className="btn-confirm" onClick={handleAddCity}>
+              <button className="btn-confirm" onClick={handleAddCity} disabled={savingCity}>
                 <Plus size={16} />
               </button>
             </div>

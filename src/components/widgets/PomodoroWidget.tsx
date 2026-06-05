@@ -7,8 +7,16 @@ interface PomodoroProps {
   widget: any;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: any) => Promise<void> | void;
   onToggleCollapsed: () => void;
+}
+
+interface PomodoroState {
+  timeLeft: number;
+  isRunning: boolean;
+  isBreak: boolean;
+  cycles: number;
+  startedAt?: number | null;
 }
 
 const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
@@ -23,7 +31,13 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
 
   useEffect(() => {
     if (widget.data) {
-      setTimeLeft(widget.data.timeLeft ?? WORK_DURATION);
+      const storedTimeLeft = widget.data.timeLeft ?? WORK_DURATION;
+      const storedStartedAt = widget.data.startedAt;
+      const adjustedTimeLeft = widget.data.isRunning && typeof storedStartedAt === 'number'
+        ? Math.max(0, storedTimeLeft - Math.floor((Date.now() - storedStartedAt) / 1000))
+        : storedTimeLeft;
+
+      setTimeLeft(adjustedTimeLeft);
       setIsRunning(widget.data.isRunning ?? false);
       setIsBreak(widget.data.isBreak ?? false);
       setCycles(widget.data.cycles ?? 0);
@@ -50,7 +64,7 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
     }
   }, []);
 
-  const saveState = useCallback((updates: Partial<{ timeLeft: number; isRunning: boolean; isBreak: boolean; cycles: number }>) => {
+  const saveState = useCallback((updates: Partial<PomodoroState>) => {
     onDataChange({ ...widget.data, ...updates });
   }, [widget.data, onDataChange]);
 
@@ -61,11 +75,11 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
       setCycles(newCycles);
       setIsBreak(true);
       setTimeLeft(BREAK_DURATION);
-      saveState({ timeLeft: BREAK_DURATION, isBreak: true, cycles: newCycles, isRunning: false });
+      saveState({ timeLeft: BREAK_DURATION, isBreak: true, cycles: newCycles, isRunning: false, startedAt: null });
     } else {
       setIsBreak(false);
       setTimeLeft(WORK_DURATION);
-      saveState({ timeLeft: WORK_DURATION, isBreak: false, isRunning: false });
+      saveState({ timeLeft: WORK_DURATION, isBreak: false, isRunning: false, startedAt: null });
     }
     playBeep();
   }, [isBreak, cycles, saveState, playBeep]);
@@ -96,17 +110,22 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
   const handleStartPause = () => {
     const newRunning = !isRunning;
     setIsRunning(newRunning);
-    saveState({ isRunning: newRunning });
+    saveState({
+      isRunning: newRunning,
+      timeLeft,
+      startedAt: newRunning ? Date.now() : null,
+    });
   };
 
   const handleReset = () => {
     const duration = isBreak ? BREAK_DURATION : WORK_DURATION;
     setIsRunning(false);
     setTimeLeft(duration);
-    saveState({ isRunning: false, timeLeft: duration });
+    saveState({ isRunning: false, timeLeft: duration, startedAt: null });
   };
 
   const handleSkip = () => {
+    setIsRunning(false);
     setTimeLeft(0);
   };
 
