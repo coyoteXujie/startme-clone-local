@@ -4,7 +4,7 @@
  *
  * 存储策略：
  * - 统一使用 chrome.storage.local 存储
- * - 原因：chrome.storage.sync 有严格配额限制（每项约 8KB），容易导致 quota exceeded 错误
+ * - 原因：local 容量更适合背景图片、RSS 缓存和多组件数据
  * - 背景图片单独存储在 local 中
  */
 
@@ -77,6 +77,13 @@ const createDefaultTab = (): Tab => ({
   createdAt: Date.now(),
 });
 
+const createDefaultData = (): StorageData => ({
+  tabs: [createDefaultTab()],
+  activeTabId: 'default-1',
+  searchEngine: 'baidu',
+  searchEngines: DEFAULT_SEARCH_ENGINES,
+});
+
 export const storage = {
   /**
    * 迁移旧数据格式到新格式
@@ -85,6 +92,31 @@ export const storage = {
    * - 迁移背景图片到单独存储
    */
   migrateData(data: any): StorageData {
+    const defaults = createDefaultData();
+    if (!data || typeof data !== 'object') {
+      return defaults;
+    }
+
+    const normalizeData = (candidate: Partial<StorageData>): StorageData => {
+      const tabs = candidate.tabs && candidate.tabs.length > 0 ? candidate.tabs : defaults.tabs;
+      const activeTabId = candidate.activeTabId && tabs.some(tab => tab.id === candidate.activeTabId)
+        ? candidate.activeTabId
+        : tabs[0].id;
+      const searchEngines = candidate.searchEngines && candidate.searchEngines.length > 0
+        ? candidate.searchEngines
+        : defaults.searchEngines;
+      const searchEngine = candidate.searchEngine && searchEngines.some(engine => engine.id === candidate.searchEngine)
+        ? candidate.searchEngine
+        : searchEngines[0].id;
+
+      return {
+        tabs,
+        activeTabId,
+        searchEngine,
+        searchEngines,
+      };
+    };
+
     // 不再自动生成图标，统一由组件层处理加载和保存
     const addIconsToLinks = (widget: any) => {
       return widget;
@@ -139,7 +171,7 @@ export const storage = {
 
       // 移除 bgImage 字段（现在单独存储）
       const { bgImage, ...result } = processedData;
-      return result as StorageData;
+      return normalizeData(result as Partial<StorageData>);
     }
 
     // 旧格式迁移：将 widgets 数组转换为 4 列
@@ -166,7 +198,7 @@ export const storage = {
       chrome.storage.local.set({ [STORAGE_KEY_BG_IMAGE]: data.bgImage });
     }
 
-    const result: Omit<StorageData, 'bgImage'> = {
+    const result: Partial<StorageData> = {
       ...data,
       tabs: migratedTabs,
     };
@@ -176,110 +208,38 @@ export const storage = {
       result.tabs = [createDefaultTab()];
     }
 
-    return result;
+    return normalizeData(result);
   },
 
   /**
    * 获取所有数据
-   * 失败时自动降级到 local 存储
    */
   async getData(): Promise<StorageData> {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get([STORAGE_KEY], (result) => {
-        // 处理 Chrome API 错误
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get([STORAGE_KEY], (result) => {
         if (chrome.runtime.lastError) {
-          console.warn('storage.sync 不可用，使用 storage.local', chrome.runtime.lastError.message);
-          this.getDataFromLocal().then(resolve);
+          reject(new Error(chrome.runtime.lastError.message));
           return;
         }
 
         if (result[STORAGE_KEY]) {
-          // 迁移数据
           const migrated = this.migrateData(result[STORAGE_KEY]);
-          // 如果是旧格式，保存新格式
-          if (!result[STORAGE_KEY].tabs?.[0]?.columns) {
-            // 异步保存，不阻塞返回
+          if (!result[STORAGE_KEY].tabs?.[0]?.columns || result[STORAGE_KEY].bgImage) {
             this.saveData(migrated).catch(err => console.warn('保存迁移数据失败:', err));
-          } else {
-            // 不再自动更新图标，避免无限循环
-            // 新格式数据，检查是否有书签缺少 icon，有则保存
-            // const needsIconUpdate = migrated.tabs.some((tab: any) =>
-            //   tab.columns.some((col: any) =>
-            //     col.widgets.some((w: any) =>
-            //       w.type === 'links' && w.data?.links?.some((l: any) => ! !l.icon || l.icon.trim() === '')
-            //     )
-            //   )
-            // );
-            // if (needsIconUpdate) {
-            //   // 异步保存，不阻塞返回
-            //   this.saveData(migrated).catch(err => console.warn('保存图标更新失败:', err));
-            // }
           }
           resolve(migrated);
         } else {
-          // sync 中没有数据，检查 local 存储
-          chrome.storage.local.get([STORAGE_KEY], (localResult) => {
-            if (localResult[STORAGE_KEY]) {
-              resolve(this.migrateData(localResult[STORAGE_KEY]));
-            } else {
-              // 返回默认数据
-              resolve({
-                tabs: [createDefaultTab()],
-                activeTabId: 'default-1',
-                searchEngine: 'baidu',
-                searchEngines: DEFAULT_SEARCH_ENGINES,
-              });
-            }
-          });
+          resolve(createDefaultData());
         }
       });
     });
   },
 
   /**
-   * 从 local 存储获取数据（sync 失败时的备用方案）
+   * 兼容旧调用方：当前等同于 getData()
    */
   async getDataFromLocal(): Promise<StorageData> {
-    return new Promise((resolve) => {
-      chrome.storage.local.get([STORAGE_KEY], (result) => {
-        if (result[STORAGE_KEY]) {
-          const migrated = this.migrateData(result[STORAGE_KEY]);
-          // 不再自动更新图标，避免无限循环
-          // 检查是否有书签缺少 icon，有则保存
-          // const needsIconUpdate = migrated.tabs.some((tab: any) =>
-          //   tab.columns.some((col: any) =>
-          //     col.widgets.some((w: any) =>
-          //       w.type === 'links' && w.data?.links?.some((l: any) => ! !l.icon || l.icon.trim() === '')
-          //     )
-          //   )
-          // );
-          // if (needsIconUpdate) {
-          //   this.saveData(migrated);
-          // }
-          resolve(migrated);
-        } else {
-          resolve({
-            tabs: [
-              {
-                id: 'default-1',
-                name: '首页',
-                icon: '',
-                columns: [
-                  { id: 'col-1', widgets: [] },
-                  { id: 'col-2', widgets: [] },
-                  { id: 'col-3', widgets: [] },
-                  { id: 'col-4', widgets: [] },
-                ],
-                createdAt: Date.now(),
-              },
-            ],
-            activeTabId: 'default-1',
-            searchEngine: 'baidu',
-            searchEngines: DEFAULT_SEARCH_ENGINES,
-          });
-        }
-      });
-    });
+    return this.getData();
   },
 
   /**
@@ -291,11 +251,11 @@ export const storage = {
    * 为了避免 quota exceeded 错误，我们统一使用 storage.local
    */
   async saveData(data: StorageData): Promise<void> {
-    return new Promise((resolve) => {
-      // 统一使用 local 存储，避免 sync 的配额限制问题
+    return new Promise((resolve, reject) => {
       chrome.storage.local.set({ [STORAGE_KEY]: data }, () => {
         if (chrome.runtime.lastError) {
-          console.error('保存数据失败:', chrome.runtime.lastError.message);
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
         }
         resolve();
       });
@@ -565,10 +525,14 @@ export const storage = {
   /**
    * 获取背景图片（单独存储在 local 中）
    */
-  async getBgImage(): Promise<string> {
-    return new Promise((resolve) => {
+  async getBgImage(): Promise<string | undefined> {
+    return new Promise((resolve, reject) => {
       chrome.storage.local.get([STORAGE_KEY_BG_IMAGE], (result) => {
-        resolve(result[STORAGE_KEY_BG_IMAGE] || '');
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(result[STORAGE_KEY_BG_IMAGE]);
       });
     });
   },
@@ -577,8 +541,14 @@ export const storage = {
    * 设置背景图片（单独存储在 local 中）
    */
   async setBgImage(url: string): Promise<void> {
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ [STORAGE_KEY_BG_IMAGE]: url }, resolve);
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [STORAGE_KEY_BG_IMAGE]: url }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
     });
   },
 
@@ -600,7 +570,7 @@ export const storage = {
    */
   async getSearchEngines(): Promise<SearchEngine[]> {
     const data = await this.getData();
-    return data.searchEngines || DEFAULT_SEARCH_ENGINES;
+    return data.searchEngines?.length ? data.searchEngines : DEFAULT_SEARCH_ENGINES;
   },
 
   /**

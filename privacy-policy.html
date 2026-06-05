@@ -90,14 +90,7 @@
 <h3>storage</h3>
 <p>Used to save all your data (bookmarks, tasks, tabs, settings, etc.) locally on your device via <code>chrome.storage.local</code>. No data is sent to any external server.</p>
 
-<h3>geolocation</h3>
-<p>Used only for the Weather widget to detect your current city for displaying local weather information. Location data is:</p>
-<ul>
-  <li>Requested once when the weather widget is first used</li>
-  <li>Never stored or transmitted to any server other than the weather API</li>
-  <li>Only sent to <strong>Open-Meteo API</strong> (open-meteo.com) as coordinate parameters</li>
-  <li>You can deny this permission — the weather widget will simply require manual city selection</li>
-</ul>
+<p>StartMe does not request browser geolocation permission. Weather cities are entered manually by the user.</p>
 
 <h3>host_permissions (Network Access)</h3>
 <p>The extension connects to the following services for specific features:</p>
@@ -112,6 +105,11 @@
     <td><code>api.open-meteo.com</code></td>
     <td>Weather data (temperature, forecast)</td>
     <td>Latitude & longitude coordinates only</td>
+  </tr>
+  <tr>
+    <td><code>geocoding-api.open-meteo.com</code></td>
+    <td>Look up coordinates for manually entered city names</td>
+    <td>City name</td>
   </tr>
   <tr>
     <td><code>api.rss2json.com</code></td>
@@ -139,7 +137,7 @@
 <h3>Open-Meteo (Weather)</h3>
 <ul>
   <li><strong>Service:</strong> Free, open-source weather API</li>
-  <li><strong>Data:</strong> Only receives geographic coordinates (latitude/longitude)</li>
+  <li><strong>Data:</strong> Receives manually entered city names for lookup and geographic coordinates for forecasts</li>
   <li><strong>Privacy Policy:</strong> <a href="https://open-meteo.com/en/docs#privacy" target="_blank">open-meteo.com/en/docs#privacy</a></li>
   <li><strong>No registration or API key required</strong></li>
 </ul>
@@ -163,7 +161,7 @@
 
 <ul>
   <li>All user data is stored in <code>chrome.storage.local</code>, which is encrypted by Chrome's storage mechanism</li>
-  <li>Data never leaves your browser unless you explicitly use the Export feature</li>
+  <li>Dashboard data is never uploaded to StartMe servers; feature-specific requests are sent only to the services listed above</li>
   <li>The Export feature creates a downloadable JSON file — you control where it is saved</li>
   <li>Uninstalling the extension permanently deletes all stored data</li>
   <li>No cookies, no tracking scripts, no analytics</li>

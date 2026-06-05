@@ -46,6 +46,15 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     return `https://favicon.im/${domain}`;
   };
 
+  const escapeSvgText = (value: string): string => (
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+  );
+
   const getDefaultIcon = (name: string, url: string): string => {
     let firstChar = 'L';
     try {
@@ -76,7 +85,7 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
         </linearGradient>
       </defs>
       <rect fill="url(#grad${colorIndex})" width="100" height="100" rx="22"/>
-      <text x="50" y="68" font-size="80" text-anchor="middle" fill="white" font-weight="900" font-family="Inter, Arial, sans-serif">${firstChar}</text>
+      <text x="50" y="68" font-size="80" text-anchor="middle" fill="white" font-weight="900" font-family="Inter, Arial, sans-serif">${escapeSvgText(firstChar)}</text>
     </svg>`;
   };
 
@@ -125,6 +134,8 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
   };
 
   const startIconTimeout = (link: LinkItem, img: HTMLImageElement) => {
+    if (loadingIconsRef.current.has(link.id)) return;
+
     const timeoutId = setTimeout(() => {
       if (loadingIconsRef.current.has(link.id)) {
         loadingIconsRef.current.delete(link.id);

@@ -9,7 +9,6 @@ npm install       # 安装依赖
 npm run dev       # 启动 Vite 开发服务器（热更新）
 npm run build     # TypeScript 编译 + Vite 构建到 dist 目录
 npm run preview   # 预览生产构建
-npm run lint      # ESLint 代码检查
 ```
 
 ### 开发流程
@@ -27,10 +26,10 @@ npm run lint      # ESLint 代码检查
 **Chrome 扩展架构 (Manifest V3)**
 - 入口点：`newtab.html` → `src/newtab.tsx` → `App.tsx`
 - 使用 `chrome_url_overrides` 替代默认新标签页
-- 权限：`storage` (本地存储), `geolocation` (天气定位), `tabs`
+- 权限：`storage` (本地存储)
 
 **数据流**
-- 所有数据通过 `chrome.storage` 持久化：优先使用 `sync` 跨设备同步，数据超过 90KB 时自动降级到 `local`（仅本地存储）
+- 所有数据通过 `chrome.storage.local` 持久化，避免 RSS、背景图和多组件数据触发 sync 配额限制
 - `src/utils/storage.ts` 封装 Chrome Storage API，提供完整的 CRUD 操作和异常处理
 - 存储键：`startme_data` (主数据), `startme_bg_image` (背景图片单独存储)
 - 主数据结构：
@@ -77,8 +76,9 @@ App.tsx (状态管理：tabs, activeTabId, bgImage, searchEngine)
 
 **外部 API**
 - 天气：Open-Meteo (免费，无需 API Key) - `https://api.open-meteo.com/v1/forecast`
+- 城市解析：Open-Meteo Geocoding - `https://geocoding-api.open-meteo.com/v1/search`
 - RSS: rss2json.com 转换服务 - 免费版每月限 10000 次请求
-- 书签图标：Google Favicon 服务 - `https://www.google.com/s2/favicons`
+- 书签图标：icon.horse / favicon.im
 
 ## 小组件类型
 

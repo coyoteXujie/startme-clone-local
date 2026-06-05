@@ -18,6 +18,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const [loadingFeeds, setLoadingFeeds] = useState<Set<string>>(new Set());
   const [feedPages, setFeedPages] = useState<Record<string, number>>({});
   const [activeFeedId, setActiveFeedId] = useState<string | null>(feeds[0]?.id || null);
+  const feedsRef = useRef<RSSFeed[]>(feeds);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const ITEMS_PER_PAGE = 5;
@@ -29,6 +30,15 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
       }
     };
   }, []);
+
+  useEffect(() => {
+    const nextFeeds = widget.data.feeds || [];
+    setFeeds(nextFeeds);
+    feedsRef.current = nextFeeds;
+    setActiveFeedId(prev =>
+      prev && nextFeeds.some((feed: RSSFeed) => feed.id === prev) ? prev : nextFeeds[0]?.id || null
+    );
+  }, [widget.data.feeds]);
 
   const handlePageChange = (feedId: string, delta: number) => {
     setFeedPages(prev => ({
@@ -50,6 +60,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
 
     const updatedFeeds = [...feeds, newFeed];
     setFeeds(updatedFeeds);
+    feedsRef.current = updatedFeeds;
     setActiveFeedId(feedId);
     setLoadingFeeds(prev => new Set(prev).add(feedId));
     await onDataChange({ feeds: updatedFeeds });
@@ -72,6 +83,9 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
         `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`,
         { signal: controller.signal }
       );
+      if (!response.ok) {
+        throw new Error(`RSS 请求失败：${response.status}`);
+      }
       const data = await response.json();
 
       if (data.status === 'ok') {
@@ -83,21 +97,29 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
           description: item.description?.substring(0, 200) || '',
         } as RSSItem));
 
-        const updatedFeeds = feeds.map((feed) =>
-          feed.id === feedId ? { ...feed, items: allItems } : feed
+        const updatedFeeds = feedsRef.current.map((feed) =>
+          feed.id === feedId ? { ...feed, items: allItems, error: undefined } : feed
         );
+        feedsRef.current = updatedFeeds;
         setFeeds(updatedFeeds);
         setFeedPages(prev => ({ ...prev, [feedId]: 0 }));
-        onDataChange({ feeds: updatedFeeds });
+        await onDataChange({ feeds: updatedFeeds });
       } else {
-        const updatedFeeds = feeds.map((feed) =>
+        const updatedFeeds = feedsRef.current.map((feed) =>
           feed.id === feedId ? { ...feed, items: [], error: data.message || '解析失败' } : feed
         );
+        feedsRef.current = updatedFeeds;
         setFeeds(updatedFeeds);
-        onDataChange({ feeds: updatedFeeds });
+        await onDataChange({ feeds: updatedFeeds });
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
+      const updatedFeeds = feedsRef.current.map((feed) =>
+        feed.id === feedId ? { ...feed, items: [], error: err.message || '加载失败' } : feed
+      );
+      feedsRef.current = updatedFeeds;
+      setFeeds(updatedFeeds);
+      await onDataChange({ feeds: updatedFeeds });
       console.error('加载 RSS 失败:', err.message || err);
     } finally {
       setLoadingFeeds(prev => {
@@ -111,6 +133,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const handleDeleteFeed = async (feedId: string) => {
     const updatedFeeds = feeds.filter((feed) => feed.id !== feedId);
     setFeeds(updatedFeeds);
+    feedsRef.current = updatedFeeds;
 
     if (activeFeedId === feedId) {
       if (updatedFeeds.length > 0) {
@@ -197,10 +220,10 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
                         if (feed.items.length === 0) {
                           if (loadingFeeds.has(activeFeedId)) {
                             return <li className="empty-state loading">正在加载...</li>;
-                          } else if ((feed as any).error) {
+                          } else if (feed.error) {
                             return (
                               <li className="empty-state error">
-                                RSS 解析失败：{(feed as any).error}
+                                RSS 解析失败：{feed.error}
                                 <br />
                                 <span style={{ fontSize: '10px', color: '#999' }}>
                                   rss2json 免费版每月限 10000 次请求

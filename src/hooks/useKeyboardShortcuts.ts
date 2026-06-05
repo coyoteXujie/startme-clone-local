@@ -16,7 +16,23 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable;
+
       shortcutsRef.current.forEach(shortcut => {
+        if (
+          isEditableTarget &&
+          shortcut.key.toLowerCase() !== 'escape' &&
+          !shortcut.ctrl &&
+          !shortcut.meta &&
+          !shortcut.alt
+        ) {
+          return;
+        }
+
         const matches =
           event.key.toLowerCase() === shortcut.key.toLowerCase() &&
           (shortcut.ctrl === undefined || shortcut.ctrl === event.ctrlKey) &&

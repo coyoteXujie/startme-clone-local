@@ -21,6 +21,11 @@ interface WeatherInfo {
   }>;
 }
 
+interface CityCoords {
+  lat: number;
+  lon: number;
+}
+
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   '北京': { lat: 39.9042, lon: 116.4074 },
   '上海': { lat: 31.2304, lon: 121.4737 },
@@ -32,6 +37,33 @@ const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   '重庆': { lat: 29.4316, lon: 106.9123 },
   '武汉': { lat: 30.5928, lon: 114.3055 },
   '南京': { lat: 32.0603, lon: 118.7969 },
+};
+
+const cityCoordsCache = new Map<string, CityCoords>(Object.entries(CITY_COORDS));
+
+const resolveCityCoords = async (city: string, signal: AbortSignal): Promise<CityCoords> => {
+  const cityName = city.trim();
+  const cached = cityCoordsCache.get(cityName);
+  if (cached) return cached;
+
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=zh&format=json`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) {
+    throw new Error('城市解析失败');
+  }
+
+  const data = await res.json();
+  const firstResult = data.results?.[0];
+  if (!firstResult) {
+    throw new Error(`未找到城市：${cityName}`);
+  }
+
+  const coords = {
+    lat: Number(firstResult.latitude),
+    lon: Number(firstResult.longitude),
+  };
+  cityCoordsCache.set(cityName, coords);
+  return coords;
 };
 
 const WMO_TO_ICON: Record<string, any> = {
@@ -67,6 +99,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   const [cities, setCities] = useState<string[]>(widget.data.cities || ['北京']);
   const [activeCity, setActiveCity] = useState(cities[0]);
   const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [weatherError, setWeatherError] = useState('');
   const [showAddCity, setShowAddCity] = useState(false);
   const [newCity, setNewCity] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -88,13 +121,22 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 10000);
 
     try {
-      const coords = CITY_COORDS[city] || { lat: 39.9042, lon: 116.4074 };
+      const cityName = city.trim();
+      if (!cityName) return;
+
+      setWeatherError('');
+      setWeather(null);
+      setLastUpdated(null);
+      const coords = await resolveCityCoords(cityName, controller.signal);
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=3`;
       const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error('天气 API 请求失败');
       const data = await res.json();
@@ -107,21 +149,17 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
         icon: getWeatherIconName(daily.weather_code[index]),
       }));
 
-      setWeather({ city, forecast });
+      setWeather({ city: cityName, forecast });
+      setWeatherError('');
       setLastUpdated(new Date());
     } catch (error: any) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') return;
+      if (error.name === 'AbortError' && !timedOut) return;
       console.error('获取天气失败:', error);
-      setWeather({
-        city,
-        forecast: Array(3).fill(null).map((_, i) => ({
-          day: i === 0 ? '今天' : getDayOfWeek(new Date(Date.now() + i * 86400000).toISOString()),
-          high: 20,
-          low: 10,
-          icon: 'cloud',
-        })),
-      });
+      setWeather(null);
+      setLastUpdated(null);
+      setWeatherError(timedOut ? '天气请求超时，请稍后重试' : error.message || '获取天气失败');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 
@@ -143,10 +181,18 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
   }, [activeCity, fetchWeather]);
 
   const handleAddCity = async () => {
-    if (!newCity.trim()) return;
-    const updatedCities = [...cities, newCity.trim()];
+    const cityName = newCity.trim();
+    if (!cityName) return;
+    if (cities.includes(cityName)) {
+      setActiveCity(cityName);
+      setNewCity('');
+      setShowAddCity(false);
+      return;
+    }
+
+    const updatedCities = [...cities, cityName];
     setCities(updatedCities);
-    setActiveCity(newCity.trim());
+    setActiveCity(cityName);
     await onDataChange({ cities: updatedCities });
     setNewCity('');
     setShowAddCity(false);
@@ -198,7 +244,11 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
 
       {widget.collapsed ? (
         <div className="collapsed-content">
-          <span className="collapsed-summary">{activeCity}: {weather?.forecast?.[0]?.high}°/{weather?.forecast?.[0]?.low}°</span>
+          <span className="collapsed-summary">
+            {weather?.forecast?.[0]
+              ? `${activeCity}: ${weather.forecast[0].high}°/${weather.forecast[0].low}°`
+              : weatherError || '天气加载中'}
+          </span>
         </div>
       ) : (
         <>
@@ -232,6 +282,14 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
                 <Plus size={16} />
               </button>
             </div>
+          )}
+
+          {weatherError && (
+            <div className="empty-state weather-error">{weatherError}</div>
+          )}
+
+          {!weather && !weatherError && (
+            <div className="empty-state loading">正在加载天气...</div>
           )}
 
           {weather && (

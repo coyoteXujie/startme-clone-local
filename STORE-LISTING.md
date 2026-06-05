@@ -23,7 +23,7 @@ Subscribe to any RSS feed and stay updated with the latest news from your favori
 A minimal todo list to keep you focused on what matters. Add, complete, and delete tasks with a single click.
 
 **Weather Widget**
-Real-time weather data powered by Open-Meteo (free, no API key needed). Supports multiple cities with 3-day forecasts.
+Real-time weather data powered by Open-Meteo (free, no API key needed). Supports manual city lookup and 3-day forecasts.
 
 **Pomodoro Timer**
 Built-in focus timer with 25-minute work sessions and 5-minute breaks. Stay productive with visual progress tracking.
@@ -36,7 +36,7 @@ Upload your own image or set a URL as your background. Create a workspace that f
 
 ### Privacy First
 
-All data is stored locally on your device using chrome.storage.local. No accounts, no cloud servers, no tracking. Your data stays yours.
+Dashboard data is stored locally on your device using chrome.storage.local. No accounts, no StartMe cloud servers, no tracking. Feature-specific requests are sent only to the listed third-party services for weather, RSS, and favicons.
 
 Export and import your data as JSON for easy backup and migration.
 
@@ -77,7 +77,7 @@ StartMe 是一款功能丰富的 Chrome 扩展，用完全可自定义的起始�
 极简待办事项管理，让你专注当下。单击即可添加、完成或删除任务。
 
 **天气组件**
-基于 Open-Meteo API 的实时天气数据（免费，无需 API Key）。支持多城市切换和 3 天天气预报。
+基于 Open-Meteo API 的实时天气数据（免费，无需 API Key）。支持手动城市解析和 3 天天气预报。
 
 **番茄钟**
 内置专注计时器，25 分钟工作 + 5 分钟休息模式，可视化进度追踪。
@@ -90,7 +90,7 @@ StartMe 是一款功能丰富的 Chrome 扩展，用完全可自定义的起始�
 
 ### 隐私优先
 
-所有数据通过 chrome.storage.local 存储在本地设备上。无需账号、无云端服务器、无追踪行为。数据完全属于你。
+工作台数据通过 chrome.storage.local 存储在本地设备上。无需账号、无 StartMe 云端服务器、无追踪行为。天气、RSS 和网站图标功能只会向对应第三方服务发送必要请求。
 
 支持一键导出/导入 JSON 备份。
 
@@ -114,7 +114,7 @@ StartMe 是一款功能丰富的 Chrome 扩展，用完全可自定义的起始�
 | **Short description** (132 char max) | Beautiful custom new tab with bookmarks, RSS, tasks, weather & pomodoro. All data local, privacy-first. No login required. |
 | **Full detailed description** | See English section above |
 | **Icon** | icon128.png (128x128) |
-| **Screenshots** | User needs to capture (1280x800 or 640x400) |
+| **Screenshots** | Capture the dashboard, bookmark widget, RSS widget, task widget, and weather widget at 1280x800 or 640x400 before submission |
 | **Small tile** | icon440.png (440x280) - resize/crop needed |
 | **Large tile** | Optional (1400x560) |
 | **Privacy policy** | See privacy-policy.html |

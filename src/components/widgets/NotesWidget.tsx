@@ -15,6 +15,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onToggl
   const [saved, setSaved] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setLocalContent(content);
@@ -28,16 +29,24 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ widget, onDataChange, onToggl
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      onDataChange({ content: val });
-      setSaved(true);
-      setJustSaved(true);
-      setTimeout(() => setJustSaved(false), 2000);
+      Promise.resolve(onDataChange({ content: val }))
+        .then(() => {
+          setSaved(true);
+          setJustSaved(true);
+          if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+          savedFlashTimerRef.current = setTimeout(() => setJustSaved(false), 2000);
+        })
+        .catch(() => {
+          setSaved(false);
+          setJustSaved(false);
+        });
     }, 500);
   }, [onDataChange]);
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
     };
   }, []);
 

@@ -55,6 +55,7 @@ const PomodoroWidget: React.FC<PomodoroProps> = ({ widget, onDataChange, onToggl
   }, [widget.data, onDataChange]);
 
   const handleTimeUp = useCallback(() => {
+    setIsRunning(false);
     if (!isBreak) {
       const newCycles = cycles + 1;
       setCycles(newCycles);

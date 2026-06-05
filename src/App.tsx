@@ -54,6 +54,42 @@ const withIcon = (engine: SearchEngine): SearchEngine => ({
   icon: SEARCH_ENGINE_ICONS[engine.id] || <Search size={18} colors={['#00809d', '#2932e1']} />,
 });
 
+const FALLBACK_SEARCH_URL = 'https://www.baidu.com/s?wd=';
+
+const normalizeHttpUrl = (url: string): string | null => {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(withProtocol.replace('{query}', 'test').replace('%s', 'test'));
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return withProtocol;
+  } catch {
+    return null;
+  }
+};
+
+const buildSearchUrl = (engineUrl: string | undefined, query: string): string => {
+  const encodedQuery = encodeURIComponent(query);
+  const normalizedUrl = normalizeHttpUrl(engineUrl || '') || FALLBACK_SEARCH_URL;
+
+  if (normalizedUrl.includes('{query}')) {
+    return normalizedUrl.split('{query}').join(encodedQuery);
+  }
+  if (normalizedUrl.includes('%s')) {
+    return normalizedUrl.split('%s').join(encodedQuery);
+  }
+  if (normalizedUrl.endsWith('=')) {
+    return `${normalizedUrl}${encodedQuery}`;
+  }
+
+  const separator = normalizedUrl.includes('?')
+    ? (normalizedUrl.endsWith('?') || normalizedUrl.endsWith('&') ? '' : '&')
+    : '?';
+  return `${normalizedUrl}${separator}q=${encodedQuery}`;
+};
+
 const App: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
@@ -88,10 +124,19 @@ const App: React.FC = () => {
   const { toasts, success, error, info, dismissToast } = useToast();
 
   useEffect(() => {
-    loadData();
-    loadBgImage();
-    loadSearchEngine();
-    loadSearchEngines();
+    loadData().catch(err => {
+      console.error('加载数据失败:', err);
+      error('加载数据失败，请刷新页面重试');
+    });
+    loadBgImage().catch(err => {
+      console.error('加载背景失败:', err);
+    });
+    loadSearchEngine().catch(err => {
+      console.error('加载搜索引擎失败:', err);
+    });
+    loadSearchEngines().catch(err => {
+      console.error('加载搜索引擎列表失败:', err);
+    });
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -127,7 +172,6 @@ const App: React.FC = () => {
     },
     {
       key: 'f',
-      ctrl: true,
       action: () => {
         const newState = !showFocusMode;
         setShowFocusMode(newState);
@@ -147,13 +191,17 @@ const App: React.FC = () => {
   };
 
   const loadData = async () => {
-    const storedTabs = await storage.getTabs();
-    const storedActiveTabId = await storage.getActiveTabId();
+    const storedData = await storage.getData();
+    const storedTabs = storedData.tabs;
+    const storedActiveTabId = storedData.activeTabId;
     setTabs(storedTabs);
     if (storedActiveTabId && storedTabs.find((t) => t.id === storedActiveTabId)) {
       setActiveTabId(storedActiveTabId);
     } else if (storedTabs.length > 0) {
       setActiveTabId(storedTabs[0].id);
+      storage.setActiveTabId(storedTabs[0].id).catch(err => {
+        console.error('保存当前标签页失败:', err);
+      });
     } else {
       // 如果没有标签页，创建一个默认的
       const defaultTab: Tab = {
@@ -169,20 +217,28 @@ const App: React.FC = () => {
       };
       await storage.addTab(defaultTab);
       setActiveTabId(defaultTab.id);
+      await storage.setActiveTabId(defaultTab.id);
       await loadData();
     }
   };
 
   const loadBgImage = async () => {
     const storedBgImage = await storage.getBgImage();
-    if (storedBgImage) {
-      setBgImage(storedBgImage);
-    } else {
+    if (storedBgImage === undefined) {
       setBgImage(defaultBg);
+    } else {
+      setBgImage(storedBgImage);
     }
   };
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
+
+  const handleSetActiveTab = (tabId: string) => {
+    setActiveTabId(tabId);
+    storage.setActiveTabId(tabId).catch(err => {
+      console.error('保存当前标签页失败:', err);
+    });
+  };
 
   const handleAddTab = async () => {
     setShowAddTabInput(true);
@@ -210,10 +266,16 @@ const App: React.FC = () => {
     setNewTabName('');
     success(`已创建标签页 "${newTab.name}"`);
 
-    storage.addTab(newTab).catch(err => {
-      console.error('保存标签页失败:', err);
-      loadData();
-    });
+    (async () => {
+      try {
+        await storage.addTab(newTab);
+        await storage.setActiveTabId(newTab.id);
+      } catch (err) {
+        console.error('保存标签页失败:', err);
+        error('保存标签页失败，请重试');
+        loadData();
+      }
+    })();
   };
 
   const handleDeleteTab = async (tabId: string, e: React.MouseEvent) => {
@@ -226,16 +288,23 @@ const App: React.FC = () => {
       // 本地先更新
       const newTabs = tabs.filter(t => t.id !== tabId);
       setTabs(newTabs);
+      const nextActiveTabId = activeTabId === tabId ? newTabs[0].id : activeTabId;
       if (activeTabId === tabId) {
-        setActiveTabId(newTabs[0].id);
+        setActiveTabId(nextActiveTabId);
       }
       success('标签页已删除');
 
       // 异步保存
-      storage.deleteTab(tabId).catch(err => {
-        console.error('删除标签页失败:', err);
-        loadData();
-      });
+      (async () => {
+        try {
+          await storage.deleteTab(tabId);
+          await storage.setActiveTabId(nextActiveTabId);
+        } catch (err) {
+          console.error('删除标签页失败:', err);
+          error('删除标签页失败，请重试');
+          loadData();
+        }
+      })();
     }
   };
 
@@ -254,11 +323,22 @@ const App: React.FC = () => {
       data: getDefaultWidgetData(pendingWidgetType),
     };
 
-    if (activeTab && activeAddColumnId) {
-      await storage.addWidgetToColumn(activeTabId, activeAddColumnId, newWidget);
-      await loadData();
-      success(`已添加 ${title} 小组件`);
+    const targetColumnId = activeAddColumnId || activeTab?.columns[0]?.id;
+    if (activeTab && targetColumnId) {
+      try {
+        await storage.addWidgetToColumn(activeTabId, targetColumnId, newWidget);
+        await loadData();
+        success(`已添加 ${title} 小组件`);
+      } catch (err) {
+        console.error('添加小组件失败:', err);
+        error('添加小组件失败，请重试');
+        return;
+      }
+    } else {
+      error('没有可用的列来添加小组件');
+      return;
     }
+
     setActiveAddColumnId(null);
     setShowAddWidget(false);
     setPendingWidgetType(null);
@@ -291,9 +371,61 @@ const App: React.FC = () => {
       const widget = activeTab.columns.flatMap(c => c.widgets).find(w => w.id === widgetId);
       const title = widget?.title || '组件';
       if (!confirm(`确定要删除「${title}」吗？`)) return;
-      await storage.deleteWidget(activeTabId, widgetId);
-      await loadData();
-      success(`已删除「${title}」`);
+      try {
+        await storage.deleteWidget(activeTabId, widgetId);
+        await loadData();
+        success(`已删除「${title}」`);
+      } catch (err) {
+        console.error('删除小组件失败:', err);
+        error('删除小组件失败，请重试');
+      }
+    }
+  };
+
+  const handleToggleWidgetCollapsed = async (widgetId: string) => {
+    if (activeTab) {
+      const currentWidget = activeTab.columns.flatMap(c => c.widgets).find(w => w.id === widgetId);
+      if (!currentWidget) return;
+
+      const nextCollapsed = !currentWidget.collapsed;
+      const newTabs = tabs.map(tab => {
+        if (tab.id !== activeTabId) return tab;
+        return {
+          ...tab,
+          columns: tab.columns.map(col => ({
+            ...col,
+            widgets: col.widgets.map(widget =>
+              widget.id === widgetId ? { ...widget, collapsed: nextCollapsed } : widget
+            )
+          }))
+        };
+      });
+
+      setTabs(newTabs);
+
+      storage.updateWidget(activeTabId, widgetId, { collapsed: nextCollapsed }).catch(err => {
+        console.error('保存折叠状态失败:', err);
+        error('保存折叠状态失败，请重试');
+        loadData();
+      });
+    }
+  };
+
+  const handleSetBgImage = async (url: string): Promise<boolean> => {
+    try {
+      await storage.setBgImage(url);
+      setBgImage(url);
+      return true;
+    } catch (err) {
+      console.error('保存背景失败:', err);
+      error('保存背景失败，请重试');
+      return false;
+    }
+  };
+
+  const handleClearBgImage = async () => {
+    if (await handleSetBgImage('')) {
+      success('背景已清除');
     }
   };
 
@@ -301,46 +433,61 @@ const App: React.FC = () => {
   const handleSaveLink = async () => {
     if (!newLinkName.trim() || !newLinkUrl.trim() || !editingLink) return;
 
-    if (editingLink.isEdit) {
-      // 编辑现有书签
-      const widget = activeTab?.columns.flatMap((c) => c.widgets).find((w) => w.id === editingLink.widgetId);
-      if (!widget || widget.type !== 'links') return;
+    try {
+      if (editingLink.isEdit) {
+        // 编辑现有书签
+        const widget = activeTab?.columns.flatMap((c) => c.widgets).find((w) => w.id === editingLink.widgetId);
+        if (!widget || widget.type !== 'links') return;
 
-      const links = widget.data.links || [];
-      const url = newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`;
-      const updatedLinks = links.map((link: any) =>
-        link.id === editingLink.linkId
-          ? {
-              ...link,
-              name: newLinkName.trim(),
-              url,
-            }
-          : link
-      );
+        const links = widget.data.links || [];
+        const url = normalizeHttpUrl(newLinkUrl);
+        if (!url) {
+          error('请输入有效的网址');
+          return;
+        }
+        const updatedLinks = links.map((link: any) =>
+          link.id === editingLink.linkId
+            ? {
+                ...link,
+                name: newLinkName.trim(),
+                url,
+              }
+            : link
+        );
 
-      await storage.updateWidget(activeTabId, widget.id, {
-        data: { ...widget.data, links: updatedLinks },
-      });
-      await loadData();
-      success('书签已更新');
-    } else {
-      // 添加新书签
-      const widget = activeTab?.columns.flatMap((c) => c.widgets).find((w) => w.id === editingLink.widgetId);
-      if (!widget || widget.type !== 'links') return;
+        await storage.updateWidget(activeTabId, widget.id, {
+          data: { ...widget.data, links: updatedLinks },
+        });
+        await loadData();
+        success('书签已更新');
+      } else {
+        // 添加新书签
+        const widget = activeTab?.columns.flatMap((c) => c.widgets).find((w) => w.id === editingLink.widgetId);
+        if (!widget || widget.type !== 'links') return;
 
-      const links = widget.data.links || [];
-      const url = newLinkUrl.trim().startsWith('http') ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`;
-      const newLink = {
-        id: `link-${Date.now()}`,
-        name: newLinkName.trim(),
-        url,
-      };
+        const links = widget.data.links || [];
+        const url = normalizeHttpUrl(newLinkUrl);
+        if (!url) {
+          error('请输入有效的网址');
+          return;
+        }
+        const newLink = {
+          id: `link-${Date.now()}`,
+          name: newLinkName.trim(),
+          url,
+        };
 
-      await storage.updateWidget(activeTabId, widget.id, {
-        data: { ...widget.data, links: [...links, newLink] },
-      });
-      await loadData();
-      success('书签已添加');
+        await storage.updateWidget(activeTabId, widget.id, {
+          data: { ...widget.data, links: [...links, newLink] },
+        });
+        await loadData();
+        success('书签已添加');
+      }
+    } catch (err) {
+      console.error('保存书签失败:', err);
+      error('保存书签失败，请重试');
+      loadData();
+      return;
     }
 
     setShowLinkModal(false);
@@ -355,10 +502,16 @@ const App: React.FC = () => {
     if (!widget || widget.type !== 'links') return;
 
     const links = widget.data.links || [];
+    const normalizedUrl = normalizeHttpUrl(url);
+    if (!normalizedUrl) {
+      error('请输入有效的网址');
+      return;
+    }
+
     const newLink = {
       id: `link-${Date.now()}`,
       name: name.trim(),
-      url: url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`,
+      url: normalizedUrl,
     };
 
     // 先更新本地 state，让 UI 立即响应
@@ -381,10 +534,16 @@ const App: React.FC = () => {
     setTabs(updatedTabs);
 
     // 异步保存到 storage
-    await storage.updateWidget(activeTabId, widgetId, {
-      data: { ...widget.data, links: [...links, newLink] },
-    });
-    success('书签已添加');
+    try {
+      await storage.updateWidget(activeTabId, widgetId, {
+        data: { ...widget.data, links: [...links, newLink] },
+      });
+      success('书签已添加');
+    } catch (err) {
+      console.error('保存书签失败:', err);
+      error('保存书签失败，请重试');
+      loadData();
+    }
   };
 
   // 拖拽处理函数
@@ -529,6 +688,7 @@ const App: React.FC = () => {
       // 异步保存到存储，不阻塞UI
       storage.moveWidget(draggedWidget.tabId, draggedWidget.widgetId, targetColumnId, targetIndex).catch(err => {
         console.error('保存拖拽位置失败:', err);
+        error('保存拖拽位置失败，请重试');
         // 如果保存失败，重新加载数据恢复正确状态
         loadData();
       });
@@ -539,46 +699,6 @@ const App: React.FC = () => {
     setDraggedWidget(null);
     setDragOverColumn(null);
     setDragOverIndex(null);
-  };
-
-  const handleToggleWidgetCollapsed = async (widgetId: string) => {
-    if (activeTab) {
-      // 本地先更新状态
-      const newTabs = tabs.map(tab => {
-        if (tab.id !== activeTabId) return tab;
-        return {
-          ...tab,
-          columns: tab.columns.map(col => ({
-            ...col,
-            widgets: col.widgets.map(widget => {
-              if (widget.id === widgetId) {
-                return { ...widget, collapsed: !widget.collapsed };
-              }
-              return widget;
-            })
-          }))
-        };
-      });
-
-      setTabs(newTabs);
-
-      // 异步保存
-      storage.updateWidget(activeTabId, widgetId, { collapsed: !newTabs.find(t => t.id === activeTabId)?.columns.flatMap(c => c.widgets).find(w => w.id === widgetId)?.collapsed }).catch(err => {
-        console.error('保存折叠状态失败:', err);
-        loadData();
-      });
-    }
-  };
-
-  const handleSetBgImage = async (url: string) => {
-    await storage.setBgImage(url);
-    setBgImage(url);
-  };
-
-  const handleClearBgImage = async () => {
-    await storage.setBgImage('');
-    setBgImage('');
-    success('背景已清除');
   };
 
   const handleUploadBgImage = () => {
@@ -605,8 +725,12 @@ const App: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64 = event.target?.result as string;
-      await handleSetBgImage(base64);
-      success('背景图片已设置');
+      if (await handleSetBgImage(base64)) {
+        success('背景图片已设置');
+      }
+    };
+    reader.onerror = () => {
+      error('读取图片失败，请重试');
     };
     reader.readAsDataURL(file);
 
@@ -654,14 +778,21 @@ const App: React.FC = () => {
       try {
         const data = JSON.parse(event.target?.result as string);
         // 验证数据格式
-        if (!data.tabs || !data.activeTabId) {
+        if (!data.tabs) {
           error('无效的数据格式');
           return;
         }
         // 确认导入
         if (confirm('导入数据将覆盖当前所有数据，确定要继续吗？')) {
-          await storage.saveData(data);
+          const migratedData = storage.migrateData(data);
+          await storage.saveData(migratedData);
+          if (data.bgImage) {
+            await storage.setBgImage(data.bgImage);
+            await loadBgImage();
+          }
           await loadData();
+          await loadSearchEngine();
+          await loadSearchEngines();
           success('数据导入成功');
         }
       } catch (err) {
@@ -676,9 +807,14 @@ const App: React.FC = () => {
   };
 
   const handleSetSearchEngine = async (engine: string) => {
-    await storage.setSearchEngine(engine);
-    setSearchEngine(engine);
-    setShowEngineSelect(false);
+    try {
+      await storage.setSearchEngine(engine);
+      setSearchEngine(engine);
+      setShowEngineSelect(false);
+    } catch (err) {
+      console.error('保存搜索引擎失败:', err);
+      error('保存搜索引擎失败，请重试');
+    }
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -686,26 +822,24 @@ const App: React.FC = () => {
     if (!searchQuery.trim()) return;
 
     const engine = searchEngines.find((e) => e.id === searchEngine);
-    let url = engine?.url || 'https://www.baidu.com/s?wd=';
+    const url = buildSearchUrl(engine?.url, searchQuery.trim());
 
-    // 确保 URL 以 = 结尾，或者包含查询参数
-    if (!url.includes('=')) {
-      url += '?q=';
-    } else if (!url.endsWith('=') && !url.includes('&')) {
-      // 如果 URL 包含 = 但不是最后一个字符，可能需要添加查询参数
-      url += '&q=';
-    }
-
-    window.open(url + encodeURIComponent(searchQuery), '_blank');
+    window.open(url, '_blank');
     setSearchQuery('');
   };
 
   const handleAddEngine = async () => {
     if (!newEngineName.trim() || !newEngineUrl.trim()) return;
+    const normalizedUrl = normalizeHttpUrl(newEngineUrl);
+    if (!normalizedUrl) {
+      error('请输入有效的 http/https 搜索 URL');
+      return;
+    }
+
     const newEngine: SearchEngine = {
       id: `engine-${Date.now()}`,
       name: newEngineName.trim(),
-      url: newEngineUrl.trim(),
+      url: normalizedUrl,
       icon: (
         <svg viewBox="0 0 100 100" width="18" height="18">
           <circle cx="50" cy="50" r="45" fill="#00809d"/>
@@ -716,19 +850,37 @@ const App: React.FC = () => {
       ),
     };
     const updatedEngines = [...searchEngines, newEngine];
-    setSearchEngines(updatedEngines);
-    await storage.setSearchEngines(updatedEngines);
-    setNewEngineName('');
-    setNewEngineUrl('');
+    try {
+      await storage.setSearchEngines(updatedEngines);
+      setSearchEngines(updatedEngines);
+      setNewEngineName('');
+      setNewEngineUrl('');
+      success('搜索引擎已添加');
+    } catch (err) {
+      console.error('添加搜索引擎失败:', err);
+      error('添加搜索引擎失败，请重试');
+    }
   };
 
   const handleDeleteEngine = async (engineId: string) => {
     const updatedEngines = searchEngines.filter((e) => e.id !== engineId);
-    setSearchEngines(updatedEngines);
-    await storage.setSearchEngines(updatedEngines);
-    if (searchEngine === engineId && updatedEngines.length > 0) {
-      setSearchEngine(updatedEngines[0].id);
-      await storage.setSearchEngine(updatedEngines[0].id);
+    if (updatedEngines.length === 0) {
+      error('至少保留一个搜索引擎');
+      return;
+    }
+
+    const nextSearchEngine = searchEngine === engineId ? updatedEngines[0].id : searchEngine;
+    try {
+      await storage.setSearchEngines(updatedEngines);
+      if (searchEngine === engineId) {
+        await storage.setSearchEngine(nextSearchEngine);
+      }
+      setSearchEngines(updatedEngines);
+      setSearchEngine(nextSearchEngine);
+      success('搜索引擎已删除');
+    } catch (err) {
+      console.error('删除搜索引擎失败:', err);
+      error('删除搜索引擎失败，请重试');
     }
   };
 
@@ -740,22 +892,28 @@ const App: React.FC = () => {
       tabId: currentTabId,
       columnId,
       onDataChange: async (data: any) => {
-        await storage.saveWidgetData(currentTabId, widget.id, data);
-        // 直接更新state，UI立即响应，不需要重新加载全部数据
-        setTabs(prevTabs => prevTabs.map(tab => {
-          if (tab.id === currentTabId) {
-            return {
-              ...tab,
-              columns: tab.columns.map(col => ({
-                ...col,
-                widgets: col.widgets.map(w =>
-                  w.id === widget.id ? { ...w, data } : w
-                )
-              }))
-            };
-          }
-          return tab;
-        }));
+        try {
+          await storage.saveWidgetData(currentTabId, widget.id, data);
+          // 直接更新state，UI立即响应，不需要重新加载全部数据
+          setTabs(prevTabs => prevTabs.map(tab => {
+            if (tab.id === currentTabId) {
+              return {
+                ...tab,
+                columns: tab.columns.map(col => ({
+                  ...col,
+                  widgets: col.widgets.map(w =>
+                    w.id === widget.id ? { ...w, data } : w
+                  )
+                }))
+              };
+            }
+            return tab;
+          }));
+        } catch (err) {
+          console.error('保存组件数据失败:', err);
+          error('保存组件数据失败，请重试');
+          loadData();
+        }
       },
       onDelete: () => handleDeleteWidget(widget.id),
       onToggleCollapsed: () => handleToggleWidgetCollapsed(widget.id),
@@ -826,6 +984,7 @@ const App: React.FC = () => {
               <div className="engine-dropdown-menu">
                 {searchEngines.map((engine) => (
                   <button
+                    type="button"
                     key={engine.id}
                     className={`engine-menu-item ${searchEngine === engine.id ? 'active' : ''}`}
                     onClick={() => {
@@ -839,6 +998,7 @@ const App: React.FC = () => {
                 ))}
                 <div className="engine-menu-divider"></div>
                 <button
+                  type="button"
                   className="engine-menu-item settings-item"
                   onClick={() => {
                     setShowEngineSelect(false);
@@ -883,7 +1043,7 @@ const App: React.FC = () => {
                 >
                   {searchEngines.map((engine) => (
                     <option key={engine.id} value={engine.id}>
-                      {engine.icon} {engine.name}
+                      {engine.name}
                     </option>
                   ))}
                 </select>
@@ -934,7 +1094,7 @@ const App: React.FC = () => {
             activeTabId={activeTabId}
             showAddTabInput={showAddTabInput}
             newTabName={newTabName}
-            onTabClick={setActiveTabId}
+            onTabClick={handleSetActiveTab}
             onAddTab={handleAddTab}
             onDeleteTab={handleDeleteTab}
             onNewTabNameChange={setNewTabName}

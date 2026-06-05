@@ -4,7 +4,7 @@
 
 **一个美观实用的 Chrome 新标签页扩展，将你的起始页打造成个性化工作台**
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/coyoteXujie/startme-clone-local)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/coyoteXujie/startme-clone-local)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Chrome](https://img.shields.io/badge/chrome-Manifest%20V3-blue.svg)](https://developer.chrome.com/docs/extensions/mv3/)
 [![React](https://img.shields.io/badge/react-18-61dafb?logo=react)](https://react.dev/)
@@ -79,10 +79,10 @@
 |------|------|
 | 数据源 | [Open-Meteo](https://open-meteo.com/) 免费 API，无需 Key |
 | 多城市 | 支持添加多个城市，一键切换 |
+| 城市解析 | 支持手动输入城市名并自动解析坐标 |
 | 3 天预报 | 含高低温 + 天气图标 |
 | 自动刷新 | 15 分钟自动更新 |
 | 图标配色 | 晴天金黄、雨天蓝色、雪天青色等 |
-| 地理定位 | 首次使用自动检测当前城市 |
 
 ### 🍅 番茄钟
 
@@ -162,7 +162,6 @@ npm run build
 | `npm run dev` | 启动 Vite 开发服务器 |
 | `npm run build` | TypeScript 编译 + Vite 生产构建 |
 | `npm run preview` | 预览生产版本 |
-| `npm run lint` | ESLint 代码检查 |
 
 ---
 
@@ -232,7 +231,7 @@ startme-clone-local/
 
 | 服务 | 用途 | 限制 | 隐私 |
 |------|------|------|------|
-| [Open-Meteo](https://open-meteo.com/) | 天气数据 | 免费，无需 Key | 仅传坐标 |
+| [Open-Meteo](https://open-meteo.com/) | 城市解析与天气数据 | 免费，无需 Key | 传城市名和坐标 |
 | [rss2json](https://rss2json.com/) | RSS 转 JSON | 免费版 10,000 次/月 | 仅传 URL |
 | [icon.horse](https://icon.horse/) | 网站 Favicon | 无限制 | 仅传域名 |
 | [favicon.im](https://favicon.im/) | Favicon 备用源 | 无限制 | 仅传域名 |
@@ -269,7 +268,7 @@ startme-clone-local/
 ## ❓ FAQ
 
 **Q: 天气不显示？**
-A: 确保 Chrome 已授予地理位置权限：`chrome://extensions/` → 扩展详情 → 地理位置权限。你也可以手动搜索添加城市。
+A: 检查城市名称是否能被 Open-Meteo 解析，或尝试输入更完整的城市名。扩展不申请地理位置权限。
 
 **Q: RSS 加载失败？**
 A: 检查 RSS 链接格式是否正确；rss2json 免费版有月度请求限制，次月自动恢复。
@@ -291,10 +290,11 @@ A: 百度/Bing/Google 使用内联 SVG 图标，不依赖外部服务。自定�
 
 | 文件 | 说明 |
 |------|------|
-| `startme-chrome-extension-v1.2.0.zip` | 发布包（`npm run build` 后从 dist 打包） |
+| `startme-chrome-extension.zip` | 发布包（`npm run build` 后从 dist 打包） |
 | `STORE-LISTING.md` | 商店描述文案（中英文） |
 | `privacy-policy.html` | 隐私政策页面（需托管到 GitHub Pages） |
 | `public/icons/icon440.png` | 商店宣传图素材 |
+| `task_widget.png` | 现有截图素材，正式上架前建议补齐 1280x800 或 640x400 截图 |
 
 ### 发布步骤
 
@@ -329,7 +329,7 @@ A: 百度/Bing/Google 使用内联 SVG 图标，不依赖外部服务。自定�
 - 设计灵感来自 [Start.me](https://start.me/)
 - 搜索引擎图标：[simple-icons](https://simpleicons.org/) 官方 SVG path 数据
 - UI 图标：[lucide-react](https://lucide.dev/) · [IconPark](https://iconpark.oceanengine.com/)
-- 天气数据：[Open-Meteo](https://open-meteo.com/)
+- 天气与城市解析：[Open-Meteo](https://open-meteo.com/)
 - RSS 解析：[rss2json](https://rss2json.com/)
 - Favicon 服务：[icon.horse](https://icon.horse/) · [favicon.im](https://favicon.im/)
 
@@ -349,7 +349,7 @@ A beautiful and practical Chrome extension that transforms your new tab page int
 - **Bookmarks** — Cloud view (pill layout) + Grid view, auto-fetched favicons
 - **RSS Reader** — Subscribe to any feed, multi-source management with pagination
 - **Task Manager** — Add / complete / delete / inline edit
-- **Weather** — Open-Meteo API, multi-city, 3-day forecast, 15-min auto-refresh
+- **Weather** — Open-Meteo API, manual city lookup, 3-day forecast, 15-min auto-refresh
 - **Pomodoro Timer** — 25min work + 5min break, visual progress bar
 - **Custom Backgrounds** — Upload local image or set URL
 - **Data Export/Import** — JSON backup, fully local storage

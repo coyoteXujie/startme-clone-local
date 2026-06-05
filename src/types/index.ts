@@ -56,6 +56,7 @@ export interface RSSFeed {
   name: string;            // 订阅源名称
   url: string;             // RSS URL
   items: RSSItem[];        // 文章列表
+  error?: string;          // 最近一次加载错误
 }
 
 /**
