@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tab, Widget, DragData, Column, WidgetType, LinkItem } from './types';
+import { Tab, Widget, WidgetType, LinkItem } from './types';
 import { storage } from './utils/storage';
 import { normalizeHttpUrl } from './utils/url';
 import { createWidget, getDefaultWidgetTitle } from './utils/widgetDefaults';
@@ -7,6 +7,7 @@ import { useToast } from './hooks/useToast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSearchEngines } from './hooks/useSearchEngines';
 import { useBackgroundImage } from './hooks/useBackgroundImage';
+import { useWidgetDrag } from './hooks/useWidgetDrag';
 import TabBar from './components/TabBar';
 import AddWidgetModal from './components/AddWidgetModal';
 import HeaderMenu from './components/HeaderMenu';
@@ -27,9 +28,6 @@ const App: React.FC = () => {
   const [pendingWidgetType, setPendingWidgetType] = useState<WidgetType | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [importInputRef, setImportInputRef] = useState<HTMLInputElement | null>(null);
-  const [draggedWidget, setDraggedWidget] = useState<DragData | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [activeAddColumnId, setActiveAddColumnId] = useState<string | null>(null);
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -161,6 +159,21 @@ const App: React.FC = () => {
   };
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
+  const {
+    dragOverColumn,
+    dragOverIndex,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+  } = useWidgetDrag({
+    activeTab,
+    activeTabId,
+    setTabs,
+    reloadData: loadData,
+    onError: error,
+  });
 
   const handleSetActiveTab = (tabId: string) => {
     setActiveTabId(tabId);
@@ -451,161 +464,6 @@ const App: React.FC = () => {
       error('保存书签失败，请重试');
       loadData();
     }
-  };
-
-  // 拖拽处理函数
-  const handleDragStart = (e: React.DragEvent, widgetId: string, columnId: string) => {
-    const dragData: DragData = {
-      widgetId,
-      tabId: activeTabId,
-      sourceColumnId: columnId,
-    };
-    setDraggedWidget(dragData);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
-    // 设置拖拽时的半透明效果
-    e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, 20, 20);
-  };
-
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    const column = activeTab?.columns.find((c) => c.id === columnId);
-    if (!column) return;
-
-    const widgets = column.widgets;
-    const columnEl = e.currentTarget as HTMLElement;
-    const columnRect = columnEl.getBoundingClientRect();
-    const scrollY = columnEl.scrollTop || 0;
-    const relativeY = e.clientY - columnRect.top + scrollY;
-
-    // 查找鼠标位置对应的 widget 索引
-    let dropIndex = widgets.length;
-    for (let i = 0; i < widgets.length; i++) {
-      const widgetEl = columnEl.querySelector(`[data-widget-index="${i}"]`);
-      if (widgetEl) {
-        const widgetRect = widgetEl.getBoundingClientRect();
-        const widgetMiddle = widgetRect.top - columnRect.top + widgetRect.height / 2 + scrollY;
-        if (relativeY < widgetMiddle) {
-          dropIndex = i;
-          break;
-        }
-      }
-    }
-
-    setDragOverColumn(columnId);
-    setDragOverIndex(dropIndex);
-  };
-
-  const handleDragLeave = (e: React.DragEvent, _columnId: string) => {
-    e.preventDefault();
-    // 只有当鼠标真正离开当前 column 时才清除状态
-    // 使用 bounding box 检查鼠标是否还在 column 元素内
-    const column = e.currentTarget as HTMLElement;
-    const rect = column.getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-
-    // 如果鼠标还在 column 范围内，不清除状态
-    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-      return;
-    }
-
-    setDragOverColumn(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetColumnId: string, targetIndex: number) => {
-    e.preventDefault();
-    setDragOverColumn(null);
-    setDragOverIndex(null);
-
-    if (draggedWidget && activeTab) {
-      // 先在本地更新状态，避免全量重加载
-      const newTabs = tabs.map(tab => {
-        if (tab.id !== draggedWidget.tabId) return tab;
-
-        // 找到源列和小组件
-        let sourceColumn: Column | undefined;
-        let widgetIndex = -1;
-        let widget: Widget | undefined;
-
-        for (const col of tab.columns) {
-          const idx = col.widgets.findIndex(w => w.id === draggedWidget.widgetId);
-          if (idx !== -1) {
-            sourceColumn = col;
-            widgetIndex = idx;
-            widget = col.widgets[idx];
-            break;
-          }
-        }
-
-        if (!sourceColumn || !widget) return tab;
-
-        // 如果是同一个列内移动
-        if (sourceColumn.id === targetColumnId) {
-          const newWidgets = [...sourceColumn.widgets];
-          // 先移除原来的位置
-          newWidgets.splice(widgetIndex, 1);
-          // 计算正确的目标索引（因为移除了一个元素，如果目标索引大于原来的索引，需要减1）
-          const adjustedIndex = targetIndex > widgetIndex ? targetIndex - 1 : targetIndex;
-          const safeIndex = Math.max(0, Math.min(adjustedIndex, newWidgets.length));
-          // 插入到新位置
-          newWidgets.splice(safeIndex, 0, widget);
-
-          return {
-            ...tab,
-            columns: tab.columns.map(col => {
-              if (col.id === sourceColumn?.id) {
-                return { ...col, widgets: newWidgets };
-              }
-              return col;
-            })
-          };
-        }
-
-        // 不同列之间移动
-        // 从源列移除
-        const newSourceColumn = {
-          ...sourceColumn,
-          widgets: sourceColumn.widgets.filter((_: Widget, idx: number) => idx !== widgetIndex)
-        };
-
-        // 插入到目标列
-        return {
-          ...tab,
-          columns: tab.columns.map(col => {
-            if (col.id === sourceColumn?.id) return newSourceColumn;
-            if (col.id === targetColumnId) {
-              const safeIndex = Math.max(0, Math.min(targetIndex, col.widgets.length));
-              const newWidgets = [...col.widgets];
-              newWidgets.splice(safeIndex, 0, widget!);
-              return { ...col, widgets: newWidgets };
-            }
-            return col;
-          })
-        };
-      });
-
-      // 更新本地状态
-      setTabs(newTabs);
-      setDraggedWidget(null);
-
-      // 异步保存到存储，不阻塞UI
-      storage.moveWidget(draggedWidget.tabId, draggedWidget.widgetId, targetColumnId, targetIndex).catch(err => {
-        console.error('保存拖拽位置失败:', err);
-        error('保存拖拽位置失败，请重试');
-        // 如果保存失败，重新加载数据恢复正确状态
-        loadData();
-      });
-    }
-  };
-
-  const handleDragEnd = () => {
-    setDraggedWidget(null);
-    setDragOverColumn(null);
-    setDragOverIndex(null);
   };
 
   // 导出数据

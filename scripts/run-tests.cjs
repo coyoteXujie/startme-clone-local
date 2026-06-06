@@ -7,6 +7,7 @@ const compiledRoot = path.join(rootDir, '.tmp-tests');
 
 const { buildSearchUrl, normalizeHttpUrl } = require('../.tmp-tests/src/utils/url.js');
 const { getDefaultWidgetData, getDefaultWidgetTitle } = require('../.tmp-tests/src/utils/widgetDefaults.js');
+const { moveWidgetInTabs } = require('../.tmp-tests/src/utils/widgetDrag.js');
 const { migrateStorageData, storage } = require('../.tmp-tests/src/utils/storage.js');
 
 const test = async (name, fn) => {
@@ -18,6 +19,13 @@ const test = async (name, fn) => {
     throw error;
   }
 };
+
+const createTaskWidget = (id) => ({
+  id,
+  type: 'tasks',
+  title: id,
+  data: { tasks: [] },
+});
 
 const main = async () => {
   await test('normalizeHttpUrl adds https and rejects non-http protocols', () => {
@@ -46,6 +54,53 @@ const main = async () => {
     assert.deepEqual(getDefaultWidgetData('tasks'), { tasks: [] });
     assert.deepEqual(getDefaultWidgetData('links'), { links: [], viewMode: 'grid' });
     assert.equal(getDefaultWidgetData('pomodoro').timeLeft, 25 * 60);
+  });
+
+  await test('moveWidgetInTabs reorders widgets inside the same column', () => {
+    const tabs = [
+      {
+        id: 'tab-1',
+        name: '首页',
+        createdAt: 1,
+        columns: [
+          { id: 'col-1', widgets: [createTaskWidget('a'), createTaskWidget('b'), createTaskWidget('c')] },
+        ],
+      },
+    ];
+
+    const nextTabs = moveWidgetInTabs({
+      tabs,
+      dragData: { tabId: 'tab-1', widgetId: 'a', sourceColumnId: 'col-1' },
+      targetColumnId: 'col-1',
+      targetIndex: 3,
+    });
+
+    assert.deepEqual(nextTabs[0].columns[0].widgets.map((widget) => widget.id), ['b', 'c', 'a']);
+    assert.deepEqual(tabs[0].columns[0].widgets.map((widget) => widget.id), ['a', 'b', 'c']);
+  });
+
+  await test('moveWidgetInTabs moves widgets across columns', () => {
+    const tabs = [
+      {
+        id: 'tab-1',
+        name: '首页',
+        createdAt: 1,
+        columns: [
+          { id: 'col-1', widgets: [createTaskWidget('a'), createTaskWidget('b')] },
+          { id: 'col-2', widgets: [createTaskWidget('c')] },
+        ],
+      },
+    ];
+
+    const nextTabs = moveWidgetInTabs({
+      tabs,
+      dragData: { tabId: 'tab-1', widgetId: 'b', sourceColumnId: 'col-1' },
+      targetColumnId: 'col-2',
+      targetIndex: 0,
+    });
+
+    assert.deepEqual(nextTabs[0].columns[0].widgets.map((widget) => widget.id), ['a']);
+    assert.deepEqual(nextTabs[0].columns[1].widgets.map((widget) => widget.id), ['b', 'c']);
   });
 
   await test('migrateStorageData creates default data for invalid input', () => {

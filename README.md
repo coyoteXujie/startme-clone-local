@@ -202,6 +202,7 @@ startme-clone-local/
 │   ├── hooks/
 │   │   ├── useBackgroundImage.ts  # 背景图片加载、上传和持久化
 │   │   ├── useSearchEngines.tsx   # 搜索引擎状态、校验和持久化
+│   │   ├── useWidgetDrag.ts       # Widget 拖拽交互和持久化
 │   │   ├── useToast.ts            # Toast 通知 Hook
 │   │   └── useKeyboardShortcuts.ts # 键盘快捷键 Hook
 │   ├── types/
@@ -210,6 +211,7 @@ startme-clone-local/
 │   ├── utils/
 │   │   ├── storage.ts             # Chrome Storage 封装 + 数据迁移
 │   │   ├── url.ts                 # URL 和搜索模板处理
+│   │   ├── widgetDrag.ts          # Widget 重排纯函数
 │   │   └── widgetDefaults.ts      # Widget 默认数据工厂
 │   ├── styles/
 │   │   ├── design-system.css      # 设计系统令牌 (颜色/字体/间距/阴影/动画)

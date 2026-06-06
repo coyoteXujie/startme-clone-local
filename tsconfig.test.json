@@ -19,6 +19,7 @@
     "src/types/**/*.ts",
     "src/utils/url.ts",
     "src/utils/widgetDefaults.ts",
+    "src/utils/widgetDrag.ts",
     "src/utils/storage.ts"
   ]
 }
