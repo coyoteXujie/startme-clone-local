@@ -8,6 +8,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSearchEngines } from './hooks/useSearchEngines';
 import { useBackgroundImage } from './hooks/useBackgroundImage';
 import { useWidgetDrag } from './hooks/useWidgetDrag';
+import { useBackupData } from './hooks/useBackupData';
 import TabBar from './components/TabBar';
 import AddWidgetModal from './components/AddWidgetModal';
 import HeaderMenu from './components/HeaderMenu';
@@ -27,7 +28,6 @@ const App: React.FC = () => {
   const [newWidgetTitle, setNewWidgetTitle] = useState('');
   const [pendingWidgetType, setPendingWidgetType] = useState<WidgetType | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
-  const [importInputRef, setImportInputRef] = useState<HTMLInputElement | null>(null);
   const [activeAddColumnId, setActiveAddColumnId] = useState<string | null>(null);
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -172,6 +172,19 @@ const App: React.FC = () => {
     activeTabId,
     setTabs,
     reloadData: loadData,
+    onError: error,
+  });
+  const {
+    setImportInputRef,
+    handleExportData,
+    handleImportData,
+    handleImportFileChange,
+  } = useBackupData({
+    reloadData: loadData,
+    reloadBackground: loadBgImage,
+    reloadSearchEngine: loadSearchEngine,
+    reloadSearchEngines: loadSearchEngines,
+    onSuccess: success,
     onError: error,
   });
 
@@ -464,74 +477,6 @@ const App: React.FC = () => {
       error('保存书签失败，请重试');
       loadData();
     }
-  };
-
-  // 导出数据
-  const handleExportData = async () => {
-    try {
-      const data = await storage.getData();
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `startme-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      success('数据导出成功');
-    } catch (err) {
-      console.error('导出失败:', err);
-      error('导出失败，请重试');
-    }
-  };
-
-  // 导入数据
-  const handleImportData = () => {
-    importInputRef?.click();
-  };
-
-  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/json') {
-      error('请选择 JSON 文件');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        // 验证数据格式
-        if (!data.tabs) {
-          error('无效的数据格式');
-          return;
-        }
-        // 确认导入
-        if (confirm('导入数据将覆盖当前所有数据，确定要继续吗？')) {
-          const migratedData = storage.migrateData(data);
-          await storage.saveData(migratedData);
-          if (data.bgImage) {
-            await storage.setBgImage(data.bgImage);
-            await loadBgImage();
-          }
-          await loadData();
-          await loadSearchEngine();
-          await loadSearchEngines();
-          success('数据导入成功');
-        }
-      } catch (err) {
-        console.error('导入失败:', err);
-        error('导入失败，请检查文件格式');
-      }
-    };
-    reader.readAsText(file);
-
-    // 清空 input
-    e.target.value = '';
   };
 
   const handleWidgetDataChange: WidgetDataChangeHandler = async (currentTabId, widget, data) => {

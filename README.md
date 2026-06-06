@@ -200,6 +200,7 @@ startme-clone-local/
 │   │   ├── ToastContainer.tsx     # Toast 容器
 │   │   └── ErrorBoundary.tsx      # React 错误边界
 │   ├── hooks/
+│   │   ├── useBackupData.ts       # JSON 备份导入、导出和迁移刷新
 │   │   ├── useBackgroundImage.ts  # 背景图片加载、上传和持久化
 │   │   ├── useSearchEngines.tsx   # 搜索引擎状态、校验和持久化
 │   │   ├── useWidgetDrag.ts       # Widget 拖拽交互和持久化
