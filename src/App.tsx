@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Tab, Widget, DragData, SearchEngine, Column, WidgetType, LinkItem } from './types';
+import { Tab, Widget, DragData, Column, WidgetType, LinkItem } from './types';
 import { storage } from './utils/storage';
-import { buildSearchUrl, normalizeHttpUrl } from './utils/url';
+import { normalizeHttpUrl } from './utils/url';
 import { createWidget, getDefaultWidgetTitle } from './utils/widgetDefaults';
 import { useToast } from './hooks/useToast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useSearchEngines } from './hooks/useSearchEngines';
+import { useBackgroundImage } from './hooks/useBackgroundImage';
 import TabBar from './components/TabBar';
 import AddWidgetModal from './components/AddWidgetModal';
 import HeaderMenu from './components/HeaderMenu';
@@ -14,8 +16,6 @@ import SearchEngineSettingsModal from './components/SearchEngineSettingsModal';
 import ToastContainer from './components/ToastContainer';
 import WidgetGrid from './components/WidgetGrid';
 import WidgetRenderer, { WidgetDataChangeHandler } from './components/WidgetRenderer';
-import { withSearchEngineIcon } from './components/SearchEngineIcons';
-import defaultBg from './assets/background.jpg';
 
 const App: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -25,22 +25,12 @@ const App: React.FC = () => {
   const [newTabName, setNewTabName] = useState('');
   const [newWidgetTitle, setNewWidgetTitle] = useState('');
   const [pendingWidgetType, setPendingWidgetType] = useState<WidgetType | null>(null);
-  const [bgImage, setBgImage] = useState<string>('');
-  const [searchEngine, setSearchEngine] = useState<string>('baidu');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchEngines, setSearchEngines] = useState<SearchEngine[]>([]);
-  const [showEngineSelect, setShowEngineSelect] = useState(false);
-  const [showEngineSettings, setShowEngineSettings] = useState(false);
-  const [newEngineName, setNewEngineName] = useState('');
-  const [newEngineUrl, setNewEngineUrl] = useState('');
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
-  const [fileInputRef, setFileInputRef] = useState<HTMLInputElement | null>(null);
   const [importInputRef, setImportInputRef] = useState<HTMLInputElement | null>(null);
   const [draggedWidget, setDraggedWidget] = useState<DragData | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [activeAddColumnId, setActiveAddColumnId] = useState<string | null>(null);
-  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [editingLink, setEditingLink] = useState<EditingLinkState | null>(null);
@@ -49,6 +39,37 @@ const App: React.FC = () => {
 
   // 初始化 Toast
   const { toasts, success, error, info, dismissToast } = useToast();
+  const {
+    searchEngine,
+    searchQuery,
+    searchEngines,
+    showEngineSelect,
+    showEngineSettings,
+    newEngineName,
+    newEngineUrl,
+    searchInputRef,
+    setSearchQuery,
+    setShowEngineSelect,
+    setShowEngineSettings,
+    setNewEngineName,
+    setNewEngineUrl,
+    setSearchInputRef,
+    loadSearchEngine,
+    loadSearchEngines,
+    handleSetSearchEngine,
+    handleSearch,
+    handleAddEngine,
+    handleDeleteEngine,
+  } = useSearchEngines({ onSuccess: success, onError: error });
+  const {
+    bgImage,
+    setFileInputRef,
+    loadBgImage,
+    handleSetBgImage,
+    handleClearBgImage,
+    handleUploadBgImage,
+    handleBgImageChange,
+  } = useBackgroundImage({ onSuccess: success, onError: error });
 
   useEffect(() => {
     loadData().catch(err => {
@@ -107,16 +128,6 @@ const App: React.FC = () => {
     },
   ]);
 
-  const loadSearchEngines = async () => {
-    const storedEngines = await storage.getSearchEngines();
-    setSearchEngines(storedEngines.map((engine) => withSearchEngineIcon(engine)));
-  };
-
-  const loadSearchEngine = async () => {
-    const storedSearchEngine = await storage.getSearchEngine();
-    setSearchEngine(storedSearchEngine);
-  };
-
   const loadData = async () => {
     const storedData = await storage.getData();
     const storedTabs = storedData.tabs;
@@ -146,15 +157,6 @@ const App: React.FC = () => {
       setActiveTabId(defaultTab.id);
       await storage.setActiveTabId(defaultTab.id);
       await loadData();
-    }
-  };
-
-  const loadBgImage = async () => {
-    const storedBgImage = await storage.getBgImage();
-    if (storedBgImage === undefined) {
-      setBgImage(defaultBg);
-    } else {
-      setBgImage(storedBgImage);
     }
   };
 
@@ -309,24 +311,6 @@ const App: React.FC = () => {
         error('保存折叠状态失败，请重试');
         loadData();
       });
-    }
-  };
-
-  const handleSetBgImage = async (url: string): Promise<boolean> => {
-    try {
-      await storage.setBgImage(url);
-      setBgImage(url);
-      return true;
-    } catch (err) {
-      console.error('保存背景失败:', err);
-      error('保存背景失败，请重试');
-      return false;
-    }
-  };
-
-  const handleClearBgImage = async () => {
-    if (await handleSetBgImage('')) {
-      success('背景已清除');
     }
   };
 
@@ -624,43 +608,6 @@ const App: React.FC = () => {
     setDragOverIndex(null);
   };
 
-  const handleUploadBgImage = () => {
-    fileInputRef?.click();
-  };
-
-  const handleBgImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // 检查文件大小（限制 2MB）
-    if (file.size > 2 * 1024 * 1024) {
-      error('图片大小请勿超过 2MB');
-      return;
-    }
-
-    // 检查文件类型
-    if (!file.type.startsWith('image/')) {
-      error('请选择图片文件');
-      return;
-    }
-
-    // 转换为 base64
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
-      if (await handleSetBgImage(base64)) {
-        success('背景图片已设置');
-      }
-    };
-    reader.onerror = () => {
-      error('读取图片失败，请重试');
-    };
-    reader.readAsDataURL(file);
-
-    // 清空 input，允许重复选择同一文件
-    e.target.value = '';
-  };
-
   // 导出数据
   const handleExportData = async () => {
     try {
@@ -729,84 +676,6 @@ const App: React.FC = () => {
     e.target.value = '';
   };
 
-  const handleSetSearchEngine = async (engine: string) => {
-    try {
-      await storage.setSearchEngine(engine);
-      setSearchEngine(engine);
-      setShowEngineSelect(false);
-    } catch (err) {
-      console.error('保存搜索引擎失败:', err);
-      error('保存搜索引擎失败，请重试');
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    const engine = searchEngines.find((e) => e.id === searchEngine);
-    const url = buildSearchUrl(engine?.url, searchQuery.trim());
-
-    window.open(url, '_blank');
-    setSearchQuery('');
-  };
-
-  const handleAddEngine = async () => {
-    if (!newEngineName.trim() || !newEngineUrl.trim()) return;
-    const normalizedUrl = normalizeHttpUrl(newEngineUrl);
-    if (!normalizedUrl) {
-      error('请输入有效的 http/https 搜索 URL');
-      return;
-    }
-
-    const newEngine: SearchEngine = {
-      id: `engine-${Date.now()}`,
-      name: newEngineName.trim(),
-      url: normalizedUrl,
-      icon: (
-        <svg viewBox="0 0 100 100" width="18" height="18">
-          <circle cx="50" cy="50" r="45" fill="#00809d"/>
-          <text x="50" y="65" fontSize="40" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial">
-            {newEngineName.trim().charAt(0)}
-          </text>
-        </svg>
-      ),
-    };
-    const updatedEngines = [...searchEngines, newEngine];
-    try {
-      await storage.setSearchEngines(updatedEngines);
-      setSearchEngines(updatedEngines);
-      setNewEngineName('');
-      setNewEngineUrl('');
-      success('搜索引擎已添加');
-    } catch (err) {
-      console.error('添加搜索引擎失败:', err);
-      error('添加搜索引擎失败，请重试');
-    }
-  };
-
-  const handleDeleteEngine = async (engineId: string) => {
-    const updatedEngines = searchEngines.filter((e) => e.id !== engineId);
-    if (updatedEngines.length === 0) {
-      error('至少保留一个搜索引擎');
-      return;
-    }
-
-    const nextSearchEngine = searchEngine === engineId ? updatedEngines[0].id : searchEngine;
-    try {
-      await storage.setSearchEngines(updatedEngines);
-      if (searchEngine === engineId) {
-        await storage.setSearchEngine(nextSearchEngine);
-      }
-      setSearchEngines(updatedEngines);
-      setSearchEngine(nextSearchEngine);
-      success('搜索引擎已删除');
-    } catch (err) {
-      console.error('删除搜索引擎失败:', err);
-      error('删除搜索引擎失败，请重试');
-    }
-  };
-
   const handleWidgetDataChange: WidgetDataChangeHandler = async (currentTabId, widget, data) => {
     try {
       await storage.saveWidgetData(currentTabId, widget.id, data);
@@ -872,8 +741,7 @@ const App: React.FC = () => {
         onQueryChange={setSearchQuery}
         onToggleEngineSelect={() => setShowEngineSelect(!showEngineSelect)}
         onSelectEngine={(engineId) => {
-          handleSetSearchEngine(engineId);
-          setShowEngineSelect(false);
+          void handleSetSearchEngine(engineId);
         }}
         onOpenSettings={() => {
           setShowEngineSelect(false);

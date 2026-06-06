@@ -1,5 +1,4 @@
 import React from 'react';
-import { Search } from '@icon-park/react';
 import { SearchEngine } from '../types';
 
 const BaiduIcon = ({ size = 18 }: { size?: number }) => (
@@ -30,7 +29,20 @@ export const SEARCH_ENGINE_ICONS: Record<string, React.ReactNode> = {
   google: <GoogleIcon size={18} />,
 };
 
+export const createSearchEngineInitialIcon = (name: string): React.ReactNode => {
+  const initial = name.trim().charAt(0).toUpperCase() || 'S';
+
+  return (
+    <svg viewBox="0 0 100 100" width="18" height="18">
+      <circle cx="50" cy="50" r="45" fill="#00809d" />
+      <text x="50" y="65" fontSize="40" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial">
+        {initial}
+      </text>
+    </svg>
+  );
+};
+
 export const withSearchEngineIcon = (engine: SearchEngine): SearchEngine => ({
   ...engine,
-  icon: SEARCH_ENGINE_ICONS[engine.id] || <Search size={18} colors={['#00809d', '#2932e1']} />,
+  icon: SEARCH_ENGINE_ICONS[engine.id] || createSearchEngineInitialIcon(engine.name),
 });

@@ -185,26 +185,41 @@ startme-clone-local/
 │   │   │   ├── WeatherWidget.tsx  # 天气预报组件
 │   │   │   ├── RSSWidget.tsx      # RSS 订阅组件
 │   │   │   ├── LinksWidget.tsx    # 书签链接组件
-│   │   │   └── PomodoroWidget.tsx # 番茄钟组件
+│   │   │   ├── PomodoroWidget.tsx # 番茄钟组件
+│   │   │   ├── NotesWidget.tsx    # 便签组件
+│   │   │   └── DevToolboxWidget.tsx # 开发工具箱组件
 │   │   ├── AddWidgetModal.tsx     # 添加组件弹窗
+│   │   ├── HeaderMenu.tsx         # 顶部菜单和备份入口
+│   │   ├── LinkModal.tsx          # 书签编辑弹窗
+│   │   ├── SearchBar.tsx          # 搜索栏
+│   │   ├── SearchEngineSettingsModal.tsx # 搜索引擎设置弹窗
+│   │   ├── WidgetGrid.tsx         # 四列组件网格
+│   │   ├── WidgetRenderer.tsx     # Widget 类型分发
 │   │   ├── TabBar.tsx             # 标签页导航栏
 │   │   ├── Toast.tsx              # Toast 消息组件
 │   │   ├── ToastContainer.tsx     # Toast 容器
 │   │   └── ErrorBoundary.tsx      # React 错误边界
 │   ├── hooks/
+│   │   ├── useBackgroundImage.ts  # 背景图片加载、上传和持久化
+│   │   ├── useSearchEngines.tsx   # 搜索引擎状态、校验和持久化
 │   │   ├── useToast.ts            # Toast 通知 Hook
 │   │   └── useKeyboardShortcuts.ts # 键盘快捷键 Hook
 │   ├── types/
 │   │   ├── index.ts               # 核心类型定义
 │   │   └── toast.ts               # Toast 类型
 │   ├── utils/
-│   │   └── storage.ts             # Chrome Storage 封装 + 数据迁移
+│   │   ├── storage.ts             # Chrome Storage 封装 + 数据迁移
+│   │   ├── url.ts                 # URL 和搜索模板处理
+│   │   └── widgetDefaults.ts      # Widget 默认数据工厂
 │   ├── styles/
 │   │   ├── design-system.css      # 设计系统令牌 (颜色/字体/间距/阴影/动画)
 │   │   └── index.css              # 主样式文件
 │   ├── App.tsx                    # 主应用组件
 │   └── newtab.tsx                 # 入口文件
 ├── generate-icons.js              # PNG 图标生成脚本
+├── scripts/
+│   ├── lint.cjs                   # 轻量维护规则检查
+│   └── run-tests.cjs              # 核心纯逻辑测试
 ├── privacy-policy.html            # 隐私政策页面
 ├── STORE-LISTING.md               # Chrome 商店描述文案
 ├── package.json
