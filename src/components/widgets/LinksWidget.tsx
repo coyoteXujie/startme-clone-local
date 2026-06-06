@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, memo } from 'react';
-import { Widget, LinkItem } from '../../types';
+import { LinkItem, WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Edit, Plus, Close } from '@icon-park/react';
 import { Cloud, LayoutGrid } from 'lucide-react';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
 interface LinksWidgetProps {
-  widget: Widget;
+  widget: WidgetOfType<'links'>;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: WidgetDataFor<'links'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
   onRequestOpenModal: (link: { linkId?: string; isEdit: boolean }, linkData?: LinkItem | null) => void;
   onAddBookmark?: (widgetId: string, name: string, url: string) => Promise<void>;

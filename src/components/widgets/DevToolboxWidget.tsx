@@ -1,15 +1,17 @@
 import React, { useState, useCallback } from 'react';
 import { Code, LockOne, Timer, Copy, CheckOne, Refresh } from '@icon-park/react';
+import { DevToolboxTab, WidgetDataFor, WidgetOfType } from '../../types';
 
 interface DevToolboxWidgetProps {
-  widget: any;
+  widget: WidgetOfType<'devtoolbox'>;
   tabId: string;
-  onDataChange: (data: any) => void;
+  columnId: string;
+  onDataChange: (data: WidgetDataFor<'devtoolbox'>) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
 }
 
-type ToolTab = 'json' | 'base64' | 'timestamp';
+type ToolTab = DevToolboxTab;
 
 const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>(widget.data?.activeTab || 'json');
@@ -36,8 +38,8 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
       const parsed = JSON.parse(jsonInput);
       setJsonOutput(JSON.stringify(parsed, null, 2));
       setJsonError('');
-    } catch (e: any) {
-      setJsonError(e.message);
+    } catch (e: unknown) {
+      setJsonError(e instanceof Error ? e.message : 'JSON 解析失败');
       setJsonOutput('');
     }
   }, [jsonInput]);
@@ -47,8 +49,8 @@ const DevToolboxWidget: React.FC<DevToolboxWidgetProps> = ({ widget, onDataChang
       const parsed = JSON.parse(jsonInput);
       setJsonOutput(JSON.stringify(parsed));
       setJsonError('');
-    } catch (e: any) {
-      setJsonError(e.message);
+    } catch (e: unknown) {
+      setJsonError(e instanceof Error ? e.message : 'JSON 解析失败');
       setJsonOutput('');
     }
   }, [jsonInput]);

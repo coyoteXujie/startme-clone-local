@@ -16,39 +16,6 @@ import React from 'react';
 export type WidgetType = 'rss' | 'tasks' | 'weather' | 'links' | 'pomodoro' | 'notes' | 'devtoolbox';
 
 /**
- * 小组件基础接口
- * 所有类型的小组件共享此结构
- */
-export interface Widget {
-  id: string;              // 唯一标识符
-  type: WidgetType;        // 小组件类型
-  title: string;           // 显示标题
-  data: any;               // 小组件特定数据
-  collapsed?: boolean;     // 是否已折叠
-}
-
-/**
- * 列接口
- * 每列包含多个垂直堆叠的小组件
- */
-export interface Column {
-  id: string;              // 唯一标识符
-  widgets: Widget[];       // 列中的小组件列表
-}
-
-/**
- * 标签页接口
- * 每个标签页包含 4 列布局
- */
-export interface Tab {
-  id: string;              // 唯一标识符
-  name: string;            // 标签页名称
-  icon?: string;           // 可选的图标
-  columns: Column[];       // 4 列布局
-  createdAt: number;       // 创建时间戳
-}
-
-/**
  * RSS 订阅源数据
  */
 export interface RSSFeed {
@@ -82,35 +49,6 @@ export interface Task {
 }
 
 /**
- * 天气数据
- */
-export interface WeatherData {
-  city: string;            // 城市名称
-  current: WeatherCurrent; // 当前天气
-  forecast: WeatherForecast[]; // 天气预报
-}
-
-/**
- * 当前天气信息
- */
-export interface WeatherCurrent {
-  temp: number;            // 温度（摄氏度）
-  condition: string;       // 天气状况描述
-  icon: string;            // 天气图标
-}
-
-/**
- * 天气预报信息
- */
-export interface WeatherForecast {
-  day: string;             // 日期/星期
-  high: number;            // 最高温度
-  low: number;             // 最低温度
-  condition: string;       // 天气状况
-  icon: string;            // 天气图标
-}
-
-/**
  * 书签链接数据
  */
 export interface LinkItem {
@@ -118,6 +56,99 @@ export interface LinkItem {
   name: string;            // 书签名称
   url: string;             // 链接 URL
   icon?: string;           // 可选的图标（favicon）
+}
+
+export type LinkViewMode = 'grid' | 'cloud';
+export type DevToolboxTab = 'json' | 'base64' | 'timestamp';
+
+export interface TasksWidgetData {
+  tasks: Task[];
+}
+
+export interface WeatherWidgetData {
+  cities: string[];
+}
+
+export interface RSSWidgetData {
+  feeds: RSSFeed[];
+}
+
+export interface LinksWidgetData {
+  links: LinkItem[];
+  viewMode?: LinkViewMode;
+  failedIcons?: string[];
+}
+
+export interface PomodoroWidgetData {
+  timeLeft: number;
+  isRunning: boolean;
+  isBreak: boolean;
+  cycles: number;
+  startedAt?: number | null;
+}
+
+export interface NotesWidgetData {
+  content: string;
+}
+
+export interface DevToolboxWidgetData {
+  activeTab: DevToolboxTab;
+}
+
+/**
+ * 每种 widget 的持久化数据结构。
+ * 这是长期维护的核心约束：新增组件时先补这里，业务代码才能获得类型保护。
+ */
+export interface WidgetDataMap {
+  tasks: TasksWidgetData;
+  weather: WeatherWidgetData;
+  rss: RSSWidgetData;
+  links: LinksWidgetData;
+  pomodoro: PomodoroWidgetData;
+  notes: NotesWidgetData;
+  devtoolbox: DevToolboxWidgetData;
+}
+
+export type WidgetData = WidgetDataMap[WidgetType];
+
+interface BaseWidget<TType extends WidgetType> {
+  id: string;                    // 唯一标识符
+  type: TType;                   // 小组件类型
+  title: string;                 // 显示标题
+  data: WidgetDataMap[TType];    // 小组件特定数据
+  collapsed?: boolean;           // 是否已折叠
+}
+
+/**
+ * 小组件联合类型。
+ * 通过 type 字段区分 data 结构，避免所有组件共享 any 后互相写错数据。
+ */
+export type Widget = {
+  [TType in WidgetType]: BaseWidget<TType>
+}[WidgetType];
+
+export type WidgetOfType<TType extends WidgetType> = Extract<Widget, { type: TType }>;
+export type WidgetDataFor<TType extends WidgetType> = WidgetDataMap[TType];
+
+/**
+ * 列接口
+ * 每列包含多个垂直堆叠的小组件
+ */
+export interface Column {
+  id: string;              // 唯一标识符
+  widgets: Widget[];       // 列中的小组件列表
+}
+
+/**
+ * 标签页接口
+ * 每个标签页包含 4 列布局
+ */
+export interface Tab {
+  id: string;              // 唯一标识符
+  name: string;            // 标签页名称
+  icon?: string;           // 可选的图标
+  columns: Column[];       // 4 列布局
+  createdAt: number;       // 创建时间戳
 }
 
 /**
@@ -128,6 +159,22 @@ export interface SearchEngine {
   name: string;            // 引擎名称
   url: string;             // 搜索 URL 模板
   icon?: React.ReactNode;  // 可选的图标（运行时添加）
+}
+
+/**
+ * 可安全持久化的搜索引擎数据。
+ * ReactNode 不能写入 chrome.storage，因此存储层只保存纯数据字段。
+ */
+export type StoredSearchEngine = Omit<SearchEngine, 'icon'>;
+
+/**
+ * chrome.storage/localStorage 中保存的主数据包。
+ */
+export interface StorageData {
+  tabs: Tab[];
+  activeTabId: string;
+  searchEngine: string;
+  searchEngines: StoredSearchEngine[];
 }
 
 /**

@@ -133,7 +133,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开 `http://localhost:5173` 即可预览。
+浏览器打开 `http://localhost:5173` 即可预览。开发环境会自动使用 `localStorage` 作为 `chrome.storage.local` 的替代存储。
 
 ### 构建生产版本
 
@@ -160,6 +160,10 @@ npm run build
 | 命令 | 说明 |
 |------|------|
 | `npm run dev` | 启动 Vite 开发服务器 |
+| `npm run typecheck` | 只运行 TypeScript 类型检查 |
+| `npm run lint` | 运行轻量维护规则检查 |
+| `npm test` | 编译并运行核心纯逻辑测试 |
+| `npm run check` | 依次运行 lint、test、build，适合作为提交前检查 |
 | `npm run build` | TypeScript 编译 + Vite 生产构建 |
 | `npm run preview` | 预览生产版本 |
 

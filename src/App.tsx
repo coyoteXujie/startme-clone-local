@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Tab, Widget, DragData, SearchEngine, Column } from './types';
+import { Tab, Widget, DragData, SearchEngine, Column, WidgetType, LinkItem } from './types';
 import { storage } from './utils/storage';
+import { buildSearchUrl, normalizeHttpUrl } from './utils/url';
+import { createWidget, getDefaultWidgetTitle } from './utils/widgetDefaults';
 import { useToast } from './hooks/useToast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import TabBar from './components/TabBar';
@@ -54,42 +56,6 @@ const withIcon = (engine: SearchEngine): SearchEngine => ({
   icon: SEARCH_ENGINE_ICONS[engine.id] || <Search size={18} colors={['#00809d', '#2932e1']} />,
 });
 
-const FALLBACK_SEARCH_URL = 'https://www.baidu.com/s?wd=';
-
-const normalizeHttpUrl = (url: string): string | null => {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-
-  try {
-    const parsed = new URL(withProtocol.replace('{query}', 'test').replace('%s', 'test'));
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    return withProtocol;
-  } catch {
-    return null;
-  }
-};
-
-const buildSearchUrl = (engineUrl: string | undefined, query: string): string => {
-  const encodedQuery = encodeURIComponent(query);
-  const normalizedUrl = normalizeHttpUrl(engineUrl || '') || FALLBACK_SEARCH_URL;
-
-  if (normalizedUrl.includes('{query}')) {
-    return normalizedUrl.split('{query}').join(encodedQuery);
-  }
-  if (normalizedUrl.includes('%s')) {
-    return normalizedUrl.split('%s').join(encodedQuery);
-  }
-  if (normalizedUrl.endsWith('=')) {
-    return `${normalizedUrl}${encodedQuery}`;
-  }
-
-  const separator = normalizedUrl.includes('?')
-    ? (normalizedUrl.endsWith('?') || normalizedUrl.endsWith('&') ? '' : '&')
-    : '?';
-  return `${normalizedUrl}${separator}q=${encodedQuery}`;
-};
-
 const App: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
@@ -97,7 +63,7 @@ const App: React.FC = () => {
   const [showAddTabInput, setShowAddTabInput] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [newWidgetTitle, setNewWidgetTitle] = useState('');
-  const [pendingWidgetType, setPendingWidgetType] = useState<Widget['type'] | null>(null);
+  const [pendingWidgetType, setPendingWidgetType] = useState<WidgetType | null>(null);
   const [bgImage, setBgImage] = useState<string>('');
   const [searchEngine, setSearchEngine] = useState<string>('baidu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,7 +82,7 @@ const App: React.FC = () => {
   const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [editingLink, setEditingLink] = useState<any | null>(null);
+  const [editingLink, setEditingLink] = useState<{ widgetId: string; linkId?: string; isEdit: boolean } | null>(null);
   const [newLinkName, setNewLinkName] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
 
@@ -182,7 +148,7 @@ const App: React.FC = () => {
 
   const loadSearchEngines = async () => {
     const storedEngines = await storage.getSearchEngines();
-    setSearchEngines(storedEngines.map((engine) => withIcon(engine as any)));
+    setSearchEngines(storedEngines.map((engine) => withIcon(engine)));
   };
 
   const loadSearchEngine = async () => {
@@ -308,20 +274,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddWidget = async (widgetType: Widget['type']) => {
+  const handleAddWidget = async (widgetType: WidgetType) => {
     setPendingWidgetType(widgetType);
-    setNewWidgetTitle(widgetType === 'tasks' ? '任务' : widgetType === 'weather' ? '天气' : widgetType === 'rss' ? '新闻源' : widgetType === 'links' ? '书签' : widgetType === 'pomodoro' ? '番茄钟' : widgetType === 'notes' ? '便签' : '开发者工具箱');
+    setNewWidgetTitle(getDefaultWidgetTitle(widgetType));
   };
 
   const handleConfirmAddWidget = async () => {
     if (!pendingWidgetType) return;
     const title = newWidgetTitle.trim() || pendingWidgetType;
-    const newWidget: Widget = {
-      id: `widget-${Date.now()}`,
-      type: pendingWidgetType,
-      title,
-      data: getDefaultWidgetData(pendingWidgetType),
-    };
+    const newWidget = createWidget(pendingWidgetType, title);
 
     const targetColumnId = activeAddColumnId || activeTab?.columns[0]?.id;
     if (activeTab && targetColumnId) {
@@ -343,27 +304,6 @@ const App: React.FC = () => {
     setShowAddWidget(false);
     setPendingWidgetType(null);
     setNewWidgetTitle('');
-  };
-
-  const getDefaultWidgetData = (type: Widget['type']) => {
-    switch (type) {
-      case 'tasks':
-        return { tasks: [] };
-      case 'weather':
-        return { cities: ['北京'] };
-      case 'rss':
-        return { feeds: [] };
-      case 'links':
-        return { links: [] };
-      case 'pomodoro':
-        return { timeLeft: 25 * 60, isRunning: false, isBreak: false, cycles: 0 };
-      case 'notes':
-        return { content: '' };
-      case 'devtoolbox':
-        return { activeTab: 'json' };
-      default:
-        return {};
-    }
   };
 
   const handleDeleteWidget = async (widgetId: string) => {
@@ -445,7 +385,7 @@ const App: React.FC = () => {
           error('请输入有效的网址');
           return;
         }
-        const updatedLinks = links.map((link: any) =>
+        const updatedLinks = links.map((link: LinkItem) =>
           link.id === editingLink.linkId
             ? {
                 ...link,
@@ -521,12 +461,13 @@ const App: React.FC = () => {
         ...tab,
         columns: tab.columns.map((col) => ({
           ...col,
-          widgets: col.widgets.map((w) => {
-            if (w.id !== widgetId) return w;
-            return {
-              ...w,
-              data: { ...w.data, links: [...(w.data.links || []), newLink] },
-            };
+	          widgets: col.widgets.map((w) => {
+	            if (w.id !== widgetId) return w;
+	            if (w.type !== 'links') return w;
+	            return {
+	              ...w,
+	              data: { ...w.data, links: [...(w.data.links || []), newLink] },
+	            };
           }),
         })),
       };
@@ -884,58 +825,62 @@ const App: React.FC = () => {
     }
   };
 
+  const handleWidgetDataChange = async <TWidget extends Widget>(
+    currentTabId: string,
+    widget: TWidget,
+    data: TWidget['data'],
+  ) => {
+    try {
+      await storage.saveWidgetData(currentTabId, widget.id, data);
+      // 这里通过 widget.id 定位同一个实体；类型转换集中在这一处，避免各组件继续散落 any。
+      setTabs(prevTabs => prevTabs.map(tab => {
+        if (tab.id !== currentTabId) return tab;
+        return {
+          ...tab,
+          columns: tab.columns.map(col => ({
+            ...col,
+            widgets: col.widgets.map(w =>
+              w.id === widget.id ? { ...w, data } as Widget : w
+            )
+          }))
+        };
+      }));
+    } catch (err) {
+      console.error('保存组件数据失败:', err);
+      error('保存组件数据失败，请重试');
+      loadData();
+    }
+  };
+
   const renderWidget = (widget: Widget, columnId: string) => {
     // 捕获当前标签页ID，异步回调时不会因为用户切换标签页而改变
     const currentTabId = activeTabId;
-    const props = {
-      widget,
+    const commonProps = {
       tabId: currentTabId,
       columnId,
-      onDataChange: async (data: any) => {
-        try {
-          await storage.saveWidgetData(currentTabId, widget.id, data);
-          // 直接更新state，UI立即响应，不需要重新加载全部数据
-          setTabs(prevTabs => prevTabs.map(tab => {
-            if (tab.id === currentTabId) {
-              return {
-                ...tab,
-                columns: tab.columns.map(col => ({
-                  ...col,
-                  widgets: col.widgets.map(w =>
-                    w.id === widget.id ? { ...w, data } : w
-                  )
-                }))
-              };
-            }
-            return tab;
-          }));
-        } catch (err) {
-          console.error('保存组件数据失败:', err);
-          error('保存组件数据失败，请重试');
-          loadData();
-        }
-      },
       onDelete: () => handleDeleteWidget(widget.id),
       onToggleCollapsed: () => handleToggleWidgetCollapsed(widget.id),
     };
 
     switch (widget.type) {
       case 'tasks':
-        return <TaskWidget {...props} />;
+        return <TaskWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       case 'weather':
-        return <WeatherWidget {...props} />;
+        return <WeatherWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       case 'rss':
-        return <RSSWidget {...props} />;
+        return <RSSWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       case 'links':
         return <LinksWidget
-          {...props}
+          {...commonProps}
+          widget={widget}
+          onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)}
           onRequestOpenModal={(link, linkData) => {
             if (link?.isEdit && linkData) {
-              setEditingLink({ widgetId: props.widget.id, linkId: link.linkId, isEdit: true });
+              setEditingLink({ widgetId: widget.id, linkId: link.linkId, isEdit: true });
               setNewLinkName(linkData.name);
               setNewLinkUrl(linkData.url);
             } else {
-              setEditingLink({ widgetId: props.widget.id, isEdit: false });
+              setEditingLink({ widgetId: widget.id, isEdit: false });
               setNewLinkName('');
               setNewLinkUrl('');
             }
@@ -944,11 +889,11 @@ const App: React.FC = () => {
           onAddBookmark={(widgetId: string, name: string, url: string) => handleAddBookmark(widgetId, name, url)}
         />;
       case 'pomodoro':
-        return <PomodoroWidget {...props} />;
+        return <PomodoroWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       case 'notes':
-        return <NotesWidget {...props} />;
+        return <NotesWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       case 'devtoolbox':
-        return <DevToolboxWidget {...props} />;
+        return <DevToolboxWidget {...commonProps} widget={widget} onDataChange={(data) => handleWidgetDataChange(currentTabId, widget, data)} />;
       default:
         return null;
     }

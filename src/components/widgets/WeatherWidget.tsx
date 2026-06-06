@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Widget } from '../../types';
+import { WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Plus, Close } from '@icon-park/react';
 import { Sun, Cloud, CloudRain, CloudDrizzle, Snowflake, CloudLightning } from 'lucide-react';
 
 interface WeatherWidgetProps {
-  widget: Widget;
+  widget: WidgetOfType<'weather'>;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => Promise<void> | void;
+  onDataChange: (data: WidgetDataFor<'weather'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }
 
@@ -66,7 +66,7 @@ const resolveCityCoords = async (city: string, signal: AbortSignal): Promise<Cit
   return coords;
 };
 
-const WMO_TO_ICON: Record<string, any> = {
+const WMO_TO_ICON: Record<string, typeof Sun> = {
   'sun': Sun,
   'cloud-sun': Cloud,
   'cloud-drizzle': CloudDrizzle,
@@ -93,6 +93,22 @@ const getDayOfWeek = (dateStr: string): string => {
   const date = new Date(dateStr);
   const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   return days[date.getDay()];
+};
+
+const getWeatherErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return '请求已取消';
+  }
+
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return '无法连接天气服务，请检查网络、代理或扩展权限';
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
 };
 
 const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
@@ -152,12 +168,12 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       setWeather({ city: cityName, forecast });
       setWeatherError('');
       setLastUpdated(new Date());
-    } catch (error: any) {
-      if (error.name === 'AbortError' && !timedOut) return;
-      console.error('获取天气失败:', error);
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError' && !timedOut) return;
+      console.warn('获取天气失败:', error);
       setWeather(null);
       setLastUpdated(null);
-      setWeatherError(timedOut ? '天气请求超时，请稍后重试' : error.message || '获取天气失败');
+      setWeatherError(timedOut ? '天气请求超时，请稍后重试' : getWeatherErrorMessage(error, '获取天气失败'));
     } finally {
       clearTimeout(timeoutId);
     }
@@ -203,9 +219,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       setActiveCity(cityName);
       setNewCity('');
       setShowAddCity(false);
-    } catch (error: any) {
-      console.error('添加城市失败:', error);
-      setWeatherError(error.name === 'AbortError' ? '城市解析超时，请稍后重试' : error.message || '添加城市失败');
+    } catch (error: unknown) {
+      console.warn('添加城市失败:', error);
+      const aborted = error instanceof DOMException && error.name === 'AbortError';
+      setWeatherError(aborted ? '城市解析超时，请稍后重试' : getWeatherErrorMessage(error, '添加城市失败'));
     } finally {
       clearTimeout(timeoutId);
       setSavingCity(false);
@@ -222,9 +239,9 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ widget, onDataChange, onT
       await onDataChange({ cities: updatedCities });
       setCities(updatedCities);
       if (activeCity === cityToRemove) setActiveCity(updatedCities[0]);
-    } catch (error: any) {
-      console.error('移除城市失败:', error);
-      setWeatherError(error.message || '移除城市失败');
+    } catch (error: unknown) {
+      console.warn('移除城市失败:', error);
+      setWeatherError(getWeatherErrorMessage(error, '移除城市失败'));
     }
   };
 

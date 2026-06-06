@@ -1,14 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Widget, RSSFeed, RSSItem } from '../../types';
+import { RSSFeed, RSSItem, WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Refresh, Delete, Plus } from '@icon-park/react';
 
 interface RSSWidgetProps {
-  widget: Widget;
+  widget: WidgetOfType<'rss'>;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: WidgetDataFor<'rss'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }
+
+interface RSS2JsonItem {
+  guid?: string;
+  link?: string;
+  title?: string;
+  pubDate?: string;
+  description?: string;
+}
+
+interface RSS2JsonResponse {
+  status?: string;
+  items?: RSS2JsonItem[];
+  message?: string;
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => (
+  error instanceof Error ? error.message || fallback : fallback
+);
 
 const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [feeds, setFeeds] = useState<RSSFeed[]>(widget.data.feeds || []);
@@ -86,13 +104,13 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
       if (!response.ok) {
         throw new Error(`RSS 请求失败：${response.status}`);
       }
-      const data = await response.json();
+      const data = await response.json() as RSS2JsonResponse;
 
       if (data.status === 'ok') {
-        const allItems = data.items.map((item: any) => ({
-          id: item.guid || item.link,
-          title: item.title,
-          link: item.link,
+        const allItems = (data.items || []).map((item, index) => ({
+          id: item.guid || item.link || `rss-item-${feedId}-${index}`,
+          title: item.title || '未命名文章',
+          link: item.link || '#',
           pubDate: item.pubDate,
           description: item.description?.substring(0, 200) || '',
         } as RSSItem));
@@ -112,15 +130,15 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
         setFeeds(updatedFeeds);
         await onDataChange({ feeds: updatedFeeds });
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const updatedFeeds = feedsRef.current.map((feed) =>
-        feed.id === feedId ? { ...feed, items: [], error: err.message || '加载失败' } : feed
+        feed.id === feedId ? { ...feed, items: [], error: getErrorMessage(err, '加载失败') } : feed
       );
       feedsRef.current = updatedFeeds;
       setFeeds(updatedFeeds);
       await onDataChange({ feeds: updatedFeeds });
-      console.error('加载 RSS 失败:', err.message || err);
+      console.warn('加载 RSS 失败:', getErrorMessage(err, '加载失败'));
     } finally {
       setLoadingFeeds(prev => {
         const next = new Set(prev);

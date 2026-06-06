@@ -1,12 +1,12 @@
 import React, { useState, memo } from 'react';
-import { Widget, Task } from '../../types';
+import { Task, WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Edit, Check, Close } from '@icon-park/react';
 
 interface TaskWidgetProps {
-  widget: Widget;
+  widget: WidgetOfType<'tasks'>;
   tabId: string;
   columnId: string;
-  onDataChange: (data: any) => void;
+  onDataChange: (data: WidgetDataFor<'tasks'>) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
 }

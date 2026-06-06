@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Edit, CheckOne } from '@icon-park/react';
+import { WidgetDataFor, WidgetOfType } from '../../types';
 
 interface NotesWidgetProps {
-  widget: any;
+  widget: WidgetOfType<'notes'>;
   tabId: string;
-  onDataChange: (data: any) => Promise<void> | void;
+  columnId: string;
+  onDataChange: (data: WidgetDataFor<'notes'>) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
 }
