@@ -3,7 +3,7 @@ import { SearchEngine, SearchEngineId } from '../types';
 import { storage } from '../utils/storage';
 import { buildSearchUrl, normalizeHttpUrl } from '../utils/url';
 import { createSearchEngineInitialIcon, withSearchEngineIcon } from '../components/SearchEngineIcons';
-import { createEngineId } from '../utils/id';
+import { castEngineId, createEngineId } from '../utils/id';
 
 interface UseSearchEnginesOptions {
   onSuccess: (message: string) => void;
@@ -15,7 +15,7 @@ interface UseSearchEnginesOptions {
  * App 只负责把这些状态接到 UI 上，搜索模板校验和默认引擎切换集中在这里。
  */
 export const useSearchEngines = ({ onSuccess, onError }: UseSearchEnginesOptions) => {
-  const [searchEngine, setSearchEngine] = useState<SearchEngineId>('baidu' as SearchEngineId);
+  const [searchEngine, setSearchEngine] = useState<SearchEngineId>(castEngineId('baidu'));
   const [searchQuery, setSearchQuery] = useState('');
   const [searchEngines, setSearchEngines] = useState<SearchEngine[]>([]);
   const [showEngineSelect, setShowEngineSelect] = useState(false);

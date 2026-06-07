@@ -23,7 +23,13 @@ import {
 } from '../types';
 import { getDefaultWidgetData } from './widgetDefaults';
 import { createWriteQueue } from './writeQueue';
-import { castTabId, createColumnId, createWidgetId, createTabId } from './id';
+import {
+  castEngineId,
+  castTabId,
+  createColumnId,
+  createWidgetId,
+  createTabId,
+} from './id';
 
 // 存储键名常量
 const STORAGE_KEY = 'startme_data';
@@ -33,9 +39,9 @@ const STORAGE_KEY_BG_IMAGE = 'startme_bg_image';
  * 默认搜索引擎列表
  */
 const DEFAULT_SEARCH_ENGINES: StoredSearchEngine[] = [
-  { id: 'baidu' as SearchEngineId, name: '百度', url: 'https://www.baidu.com/s?wd=' },
-  { id: 'bing' as SearchEngineId, name: 'Bing', url: 'https://www.bing.com/search?q=' },
-  { id: 'google' as SearchEngineId, name: 'Google', url: 'https://www.google.com/search?q=' },
+  { id: castEngineId('baidu'), name: '百度', url: 'https://www.baidu.com/s?wd=' },
+  { id: castEngineId('bing'), name: 'Bing', url: 'https://www.bing.com/search?q=' },
+  { id: castEngineId('google'), name: 'Google', url: 'https://www.google.com/search?q=' },
 ];
 
 type StorageRecord = Record<string, unknown>;
@@ -168,7 +174,7 @@ const createDefaultTab = (): Tab => ({
 const createDefaultData = (): StorageData => ({
   tabs: [createDefaultTab()],
   activeTabId: castTabId('default-1'),
-  searchEngine: 'baidu' as SearchEngineId,
+  searchEngine: castEngineId('baidu'),
   searchEngines: DEFAULT_SEARCH_ENGINES,
 });
 
@@ -233,7 +239,7 @@ export const migrateStorageData = (data: unknown): StorageData => {
     }
 
     if (processedData.searchEngine === 'sogou') {
-      processedData.searchEngine = 'baidu' as SearchEngineId;
+      processedData.searchEngine = castEngineId('baidu');
     }
 
     const { bgImage, ...result } = processedData;
@@ -278,12 +284,11 @@ export const migrateStorageData = (data: unknown): StorageData => {
   const result: Partial<StorageData> = {
     ...(data as object),
     tabs: migratedTabs.length > 0 ? migratedTabs : [createDefaultTab()],
-    searchEngine:
-      data.searchEngine === 'sogou'
-        ? undefined
-        : typeof data.searchEngine === 'string'
-          ? data.searchEngine as SearchEngineId
-          : undefined,
+    searchEngine: data.searchEngine === 'sogou'
+      ? undefined
+      : typeof data.searchEngine === 'string'
+        ? castEngineId(data.searchEngine)
+        : undefined,
     searchEngines: legacySearchEngines,
   };
 
@@ -666,7 +671,7 @@ export const storage = {
 
   async getSearchEngine(): Promise<SearchEngineId> {
     const data = await this.getData();
-    return data.searchEngine || 'baidu' as SearchEngineId;
+    return data.searchEngine || castEngineId('baidu');
   },
 
   /**

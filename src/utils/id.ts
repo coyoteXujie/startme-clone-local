@@ -36,3 +36,10 @@ export const createEngineId = (): SearchEngineId => createId('engine') as Search
 export const createToastId = (): ToastId => createId('toast') as ToastId;
 
 export const castTabId = (value: string): TabId => value as TabId;
+export const castColumnId = (value: string): ColumnId => value as ColumnId;
+export const castWidgetId = (value: string): WidgetId => value as WidgetId;
+export const castLinkId = (value: string): LinkId => value as LinkId;
+export const castTaskId = (value: string): TaskId => value as TaskId;
+export const castFeedId = (value: string): RssFeedId => value as RssFeedId;
+export const castEngineId = (value: string): SearchEngineId => value as SearchEngineId;
+export const castToastId = (value: string): ToastId => value as ToastId;

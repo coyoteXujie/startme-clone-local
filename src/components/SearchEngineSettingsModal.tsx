@@ -1,6 +1,7 @@
 import React from 'react';
 import { Delete, Drag } from '@icon-park/react';
 import { SearchEngine, SearchEngineId } from '../types';
+import { castEngineId } from '../utils/id';
 
 interface SearchEngineSettingsModalProps {
   engines: SearchEngine[];
@@ -39,7 +40,7 @@ const SearchEngineSettingsModal: React.FC<SearchEngineSettingsModalProps> = ({
           <select
             className="setting-select"
             value={activeEngineId}
-            onChange={(event) => onSelectEngine(event.target.value as SearchEngineId)}
+            onChange={(event) => onSelectEngine(castEngineId(event.target.value))}
           >
             {engines.map((engine) => (
               <option key={engine.id} value={engine.id}>
