@@ -233,6 +233,21 @@ const main = async () => {
     assert.equal(data.tabs.some((tab) => tab.id === 'work'), true);
   });
 
+  await test('setSearchEngine ignores non-existent engine', async () => {
+    await storage.saveData({
+      activeTabId: 'base',
+      searchEngine: 'baidu',
+      searchEngines: [
+        { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=' },
+      ],
+      tabs: [{ id: 'base', name: '首页', columns: [{ id: 'col-1', widgets: [] }], createdAt: 1 }],
+    });
+
+    await storage.setSearchEngine('invalid');
+    const data = await storage.getData();
+    assert.equal(data.searchEngine, 'baidu');
+  });
+
   await test('write queue runs tasks serially and waitForIdle works', async () => {
     const queue = createWriteQueue();
     const order = [];

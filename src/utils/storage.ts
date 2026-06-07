@@ -785,7 +785,14 @@ export const storage = {
    * 设置默认搜索引擎
    */
   async setSearchEngine(engine: SearchEngineId): Promise<void> {
-    await mutateData((data) => ({ ...data, searchEngine: engine }));
+    await mutateData((data) => {
+      if (!data.searchEngines.some((candidate) => candidate.id === engine)) {
+        console.warn(`设置搜索引擎失败：引擎 ${engine} 不存在，已忽略`);
+        return data;
+      }
+
+      return { ...data, searchEngine: engine };
+    });
   },
 
   /**
