@@ -186,6 +186,34 @@ const main = async () => {
     assert.equal(queue.getState().pending, 0);
   });
 
+  await test('write queue keeps order after failed task', async () => {
+    const queue = createWriteQueue();
+    const order = [];
+    let firstFailed = false;
+
+    const p1 = queue.enqueue(async () => {
+      order.push('first');
+      throw new Error('boom');
+    });
+    const p2 = queue.enqueue(async () => {
+      order.push('second');
+      return 'second';
+    });
+
+    try {
+      await p1;
+      throw new Error('预期抛错任务应失败');
+    } catch (error) {
+      firstFailed = error instanceof Error;
+    }
+
+    await p2;
+    assert.equal(firstFailed, true);
+    assert.deepEqual(order, ['first', 'second']);
+    await queue.waitForIdle();
+    assert.equal(queue.getState().pending, 0);
+  });
+
   await test('id helpers generate stable prefixes', () => {
     assert.equal(createWidgetId().startsWith('widget-'), true);
     assert.equal(createFeedId().startsWith('rss-'), true);
