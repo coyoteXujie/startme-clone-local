@@ -25,6 +25,7 @@ import {
 } from '../types';
 import { getDefaultWidgetData, getDefaultWidgetTitle } from './widgetDefaults';
 import { createWriteQueue } from './writeQueue';
+import { normalizeHttpUrl } from './url';
 import {
   castEngineId,
   castTabId,
@@ -51,6 +52,8 @@ const DEFAULT_SEARCH_ENGINES: StoredSearchEngine[] = [
   { id: castEngineId('bing'), name: 'Bing', url: 'https://www.bing.com/search?q=' },
   { id: castEngineId('google'), name: 'Google', url: 'https://www.google.com/search?q=' },
 ];
+
+const CURRENT_STORAGE_SCHEMA_VERSION = 2;
 
 type StorageRecord = Record<string, unknown>;
 
@@ -180,6 +183,7 @@ const createDefaultTab = (): Tab => ({
 });
 
 const createDefaultData = (): StorageData => ({
+  schemaVersion: CURRENT_STORAGE_SCHEMA_VERSION,
   tabs: [createDefaultTab()],
   activeTabId: castTabId('default-1'),
   searchEngine: castEngineId('baidu'),
@@ -276,6 +280,7 @@ const normalizeSearchEngines = (engines: unknown): StoredSearchEngine[] | undefi
       && typeof engine.id === 'string'
       && typeof engine.name === 'string'
       && typeof engine.url === 'string'
+      && normalizeHttpUrl(engine.url) !== null
       && engine.id !== 'sogou'
   )) as StoredSearchEngine[];
 
@@ -283,13 +288,26 @@ const normalizeSearchEngines = (engines: unknown): StoredSearchEngine[] | undefi
 
   const unique = new Map<SearchEngineId, StoredSearchEngine>();
   for (const engine of filtered) {
+    const normalizedUrl = normalizeHttpUrl(engine.url);
+    if (!normalizedUrl) {
+      continue;
+    }
+
     unique.set(castEngineId(engine.id), {
       ...engine,
       id: castEngineId(engine.id),
+      url: normalizedUrl,
     });
   }
 
   return [...unique.values()];
+};
+
+const resolveStorageVersion = (candidate: unknown): number => {
+  if (typeof candidate === 'number' && Number.isInteger(candidate) && candidate > 0) {
+    return candidate;
+  }
+  return 0;
 };
 
 /**
@@ -329,6 +347,7 @@ const normalizeStorageData = (candidate: Partial<StorageData>, defaults = create
     : searchEngines[0].id;
 
   return {
+    schemaVersion: CURRENT_STORAGE_SCHEMA_VERSION,
     tabs,
     activeTabId,
     searchEngine,
@@ -350,6 +369,7 @@ export const migrateStorageData = (data: unknown): StorageData => {
   const normalizedTabs = toNormalizedTabs(tabsCandidate);
   const firstTab = tabsCandidate[0];
   const normalizedSearchEngines = normalizeSearchEngines(data.searchEngines);
+  const hasLegacyVersion = resolveStorageVersion(data.schemaVersion) < CURRENT_STORAGE_SCHEMA_VERSION;
 
   if (!isRecord(firstTab) || !Array.isArray(firstTab.columns)) {
     if (normalizedTabs.length > 0 && isRecord(firstTab) && Array.isArray(firstTab.widgets)) {
@@ -367,12 +387,21 @@ export const migrateStorageData = (data: unknown): StorageData => {
       ? castEngineId(data.searchEngine)
       : castEngineId('baidu'),
     searchEngines: normalizedSearchEngines,
+    schemaVersion: hasLegacyVersion ? CURRENT_STORAGE_SCHEMA_VERSION : resolveStorageVersion(data.schemaVersion),
   };
 
   return normalizeStorageData(result, defaults);
 };
 
-const rawGetData = async (): Promise<StorageData> => {
+type RawGetDataOptions = {
+  persistMigration?: boolean;
+};
+
+const rawGetData = async (options: RawGetDataOptions = {}): Promise<StorageData> => {
+  const {
+    persistMigration = true,
+  } = options;
+
   const result = await readStorageKeys([STORAGE_KEY]);
   const storedData = result[STORAGE_KEY];
 
@@ -382,11 +411,12 @@ const rawGetData = async (): Promise<StorageData> => {
   const storedTabs = isRecord(storedData) && Array.isArray(storedData.tabs) ? storedData.tabs : [];
   const storedFirstTab = storedTabs[0];
   const needsMigrationWrite = isRecord(storedData) && (
+    resolveStorageVersion(storedData.schemaVersion) !== CURRENT_STORAGE_SCHEMA_VERSION ||
     !isRecord(storedFirstTab) ||
     !Array.isArray(storedFirstTab.columns) ||
     Boolean(storedData.bgImage)
   );
-  if (needsMigrationWrite && isRecord(storedData)) {
+  if (persistMigration && needsMigrationWrite && isRecord(storedData)) {
     void enqueueWrite(async () => {
       if (storedData.bgImage) {
         await writeStorageItems({ [STORAGE_KEY_BG_IMAGE]: storedData.bgImage });
@@ -402,7 +432,7 @@ const rawSaveData = (data: StorageData): Promise<void> => writeStorageItems({ [S
 
 const mutateData = <T>(mutator: (data: StorageData) => { data: StorageData; result: T } | StorageData): Promise<T> => (
   enqueueWrite(async () => {
-    const currentData = await rawGetData();
+    const currentData = await rawGetData({ persistMigration: false });
     const mutation = mutator(currentData);
     const nextData = 'data' in mutation ? mutation.data : mutation;
     await rawSaveData(nextData);

@@ -182,6 +182,8 @@ export type StoredSearchEngine = Omit<SearchEngine, 'icon'>;
  * chrome.storage/localStorage 中保存的主数据包。
  */
 export interface StorageData {
+  // 数据结构版本号（用于迁移与兼容性清洗）
+  schemaVersion: number;
   tabs: Tab[];
   activeTabId: TabId;
   searchEngine: SearchEngineId;

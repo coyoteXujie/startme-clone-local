@@ -110,10 +110,12 @@ const main = async () => {
     assert.equal(migrated.activeTabId, 'default-1');
     assert.equal(migrated.tabs.length, 1);
     assert.equal(migrated.searchEngine, 'baidu');
+    assert.equal(migrated.schemaVersion, 2);
   });
 
   await test('migrateStorageData converts old widgets array into columns', () => {
     const migrated = migrateStorageData({
+      schemaVersion: 1,
       activeTabId: 'old-tab',
       searchEngine: 'sogou',
       searchEngines: [
@@ -137,10 +139,12 @@ const main = async () => {
     assert.equal(migrated.searchEngines.some((engine) => engine.id === 'sogou'), false);
     assert.equal(migrated.tabs[0].columns.length, 4);
     assert.equal(migrated.tabs[0].columns[0].widgets[0].id, 'legacy-task');
+    assert.equal(migrated.schemaVersion, 2);
   });
 
   await test('migrateStorageData 过滤非法小组件并补齐列数量', () => {
     const migrated = migrateStorageData({
+      schemaVersion: 0,
       activeTabId: 'invalid-tab',
       searchEngine: 'sogou',
       tabs: [
@@ -171,6 +175,39 @@ const main = async () => {
     assert.equal(migrated.tabs[0].columns[0].widgets.every((widget) => widget.id !== 'bad-widget'), true);
     assert.equal(migrated.searchEngine, migrated.searchEngines[0].id);
     assert.equal(migrated.searchEngines.length, 1);
+    assert.equal(migrated.schemaVersion, 2);
+  });
+
+  await test('migrateStorageData 会修复旧版本字段与非法搜索引擎 URL', () => {
+    const migrated = migrateStorageData({
+      schemaVersion: 1,
+      activeTabId: 'legacy-tab',
+      searchEngine: 'engine-old',
+      tabs: [
+        {
+          id: 'legacy-tab',
+          name: '旧版',
+          columns: [
+            {
+              id: 'legacy-col',
+              widgets: [
+                { id: 'legacy-rss', type: 'rss', title: '新闻', data: { feeds: [] } },
+              ],
+            },
+          ],
+        },
+      ],
+      searchEngines: [
+        { id: 'engine-old', name: '旧引擎', url: 'javascript:alert(1)' },
+        { id: 'engine-new', name: '新引擎', url: 'example.com/search?q=' },
+      ],
+    });
+
+    assert.equal(migrated.schemaVersion, 2);
+    assert.equal(migrated.searchEngine, 'engine-new');
+    assert.equal(migrated.searchEngines.length, 1);
+    assert.equal(migrated.searchEngines[0].id, 'engine-new');
+    assert.equal(migrated.searchEngines[0].url, 'https://example.com/search?q=');
   });
 
   await test('storage write queue preserves concurrent mutations', async () => {
