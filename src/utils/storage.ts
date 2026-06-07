@@ -20,16 +20,24 @@ import {
   WidgetId,
   TabId,
   ColumnId,
+  WidgetType,
+  WidgetDataFor,
 } from '../types';
-import { getDefaultWidgetData } from './widgetDefaults';
+import { getDefaultWidgetData, getDefaultWidgetTitle } from './widgetDefaults';
 import { createWriteQueue } from './writeQueue';
 import {
   castEngineId,
   castTabId,
+  castColumnId,
   createColumnId,
+  castWidgetId,
   createWidgetId,
   createTabId,
 } from './id';
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null
+);
 
 // 存储键名常量
 const STORAGE_KEY = 'startme_data';
@@ -178,9 +186,135 @@ const createDefaultData = (): StorageData => ({
   searchEngines: DEFAULT_SEARCH_ENGINES,
 });
 
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
+/**
+ * 历史数据可能缺列或列数不稳定，统一按 4 列输出，兼容老数据。
+ */
+const DEFAULT_COLUMN_COUNT = 4;
+
+const KNOWN_WIDGET_TYPES: WidgetType[] = [
+  'tasks',
+  'weather',
+  'rss',
+  'links',
+  'pomodoro',
+  'notes',
+  'devtoolbox',
+];
+
+/**
+ * 只接受已注册的 widget 类型。
+ */
+const isWidgetType = (value: unknown): value is WidgetType => (
+  typeof value === 'string' && KNOWN_WIDGET_TYPES.includes(value as WidgetType)
 );
+
+/**
+ * 清洗历史 widget：缺失/非法字段会直接过滤，保留可用数据并补齐默认值。
+ */
+const toWidget = (candidate: unknown): Widget | null => {
+  if (!isRecord(candidate)) return null;
+
+  const type = candidate.type;
+  if (!isWidgetType(type)) return null;
+
+  const defaultData = getDefaultWidgetData(type);
+  const mergedData = isRecord(candidate.data)
+    ? { ...defaultData, ...candidate.data } as WidgetDataFor<typeof type>
+    : defaultData;
+
+  const title = typeof candidate.title === 'string' ? candidate.title : getDefaultWidgetTitle(type);
+  const id = typeof candidate.id === 'string'
+    ? castWidgetId(candidate.id)
+    : createWidgetId();
+
+  return {
+    id,
+    type,
+    title,
+    data: mergedData,
+    collapsed: candidate.collapsed === true ? true : undefined,
+  } as Widget;
+};
+
+/**
+ * 统一列 id，避免历史数据里出现非标准 id。
+ */
+const toColumnId = (candidate: unknown, tabId: TabId, index: number): ColumnId => {
+  if (typeof candidate === 'string') return castColumnId(candidate);
+  if (!isRecord(candidate) || typeof candidate.id !== 'string') {
+    return createColumnId(tabId, index);
+  }
+  return castColumnId(candidate.id);
+};
+
+/**
+ * 列归一化：补齐 widgets 且剔除非法条目。
+ */
+const toNormalizedColumn = (candidate: unknown, tabId: TabId, index: number): Column => {
+  if (!isRecord(candidate)) {
+    return { id: createColumnId(tabId, index), widgets: [] };
+  }
+
+  const widgets = Array.isArray(candidate.widgets)
+    ? candidate.widgets.map(toWidget).filter((widget): widget is Widget => widget !== null)
+    : [];
+
+  return {
+    id: toColumnId(candidate.id, tabId, index),
+    widgets,
+  };
+};
+
+/**
+ * 搜索引擎归一化：去除非法项、去重、移除历史 sogou 值。
+ */
+const normalizeSearchEngines = (engines: unknown): StoredSearchEngine[] | undefined => {
+  if (!Array.isArray(engines)) return undefined;
+
+  const filtered = engines.filter((engine): engine is StoredSearchEngine => (
+    isRecord(engine)
+      && typeof engine.id === 'string'
+      && typeof engine.name === 'string'
+      && typeof engine.url === 'string'
+      && engine.id !== 'sogou'
+  )) as StoredSearchEngine[];
+
+  if (filtered.length === 0) return undefined;
+
+  const unique = new Map<SearchEngineId, StoredSearchEngine>();
+  for (const engine of filtered) {
+    unique.set(castEngineId(engine.id), {
+      ...engine,
+      id: castEngineId(engine.id),
+    });
+  }
+
+  return [...unique.values()];
+};
+
+/**
+ * 标签页归一化：统一 id、名称、创建时间和列结构。
+ */
+const toNormalizedTabs = (tabsCandidate: unknown[]): Tab[] => tabsCandidate.map((tab) => {
+  const rawTab = isRecord(tab) ? tab : {};
+  const tabId = typeof rawTab.id === 'string' ? castTabId(rawTab.id) : createTabId();
+  const columnsCandidate = Array.isArray(rawTab.columns) ? rawTab.columns : [];
+  const columns = columnsCandidate
+    .map((column, columnIndex) => toNormalizedColumn(column, tabId, columnIndex + 1))
+    .slice(0, DEFAULT_COLUMN_COUNT);
+
+  while (columns.length < DEFAULT_COLUMN_COUNT) {
+    columns.push({ id: createColumnId(tabId, columns.length + 1), widgets: [] });
+  }
+
+  return {
+    id: tabId,
+    name: typeof rawTab.name === 'string' ? rawTab.name : '首页',
+    icon: typeof rawTab.icon === 'string' ? rawTab.icon : undefined,
+    columns,
+    createdAt: typeof rawTab.createdAt === 'number' ? rawTab.createdAt : Date.now(),
+  };
+});
 
 const normalizeStorageData = (candidate: Partial<StorageData>, defaults = createDefaultData()): StorageData => {
   const tabs = candidate.tabs && candidate.tabs.length > 0 ? candidate.tabs : defaults.tabs;
@@ -213,83 +347,26 @@ export const migrateStorageData = (data: unknown): StorageData => {
   }
 
   const tabsCandidate = Array.isArray(data.tabs) ? data.tabs : [];
+  const normalizedTabs = toNormalizedTabs(tabsCandidate);
   const firstTab = tabsCandidate[0];
+  const normalizedSearchEngines = normalizeSearchEngines(data.searchEngines);
 
-  if (isRecord(firstTab) && Array.isArray(firstTab.columns)) {
-    const processedData = { ...data } as Partial<StorageData> & { bgImage?: unknown };
-
-    processedData.tabs = tabsCandidate.map((tab) => {
-      if (!isRecord(tab) || !Array.isArray(tab.columns)) return tab as Tab;
-      return {
-        ...tab,
-        columns: tab.columns.map((col) => {
-          if (!isRecord(col) || !Array.isArray(col.widgets)) return col as Column;
-          return {
-            ...col,
-            widgets: col.widgets.map((widget) => widget as Widget),
-          };
-        }),
-      } as Tab;
-    });
-
-    if (processedData.searchEngines) {
-      processedData.searchEngines = processedData.searchEngines.filter(
-        (engine) => engine.id !== 'sogou'
-      );
+  if (!isRecord(firstTab) || !Array.isArray(firstTab.columns)) {
+    if (normalizedTabs.length > 0 && isRecord(firstTab) && Array.isArray(firstTab.widgets)) {
+      const restoredWidgets = firstTab.widgets
+        .map((widget) => toWidget(widget))
+        .filter((widget): widget is Widget => widget !== null);
+      normalizedTabs[0].columns[0].widgets = restoredWidgets;
     }
-
-    if (processedData.searchEngine === 'sogou') {
-      processedData.searchEngine = castEngineId('baidu');
-    }
-
-    const { bgImage, ...result } = processedData;
-    void bgImage;
-    return normalizeStorageData(result, defaults);
   }
-
-  const migratedTabs: Tab[] = tabsCandidate.map((tab) => {
-    const tabRecord = isRecord(tab) ? tab : {};
-    const tabId = typeof tabRecord.id === 'string' ? castTabId(tabRecord.id) : createTabId();
-    return {
-      ...(tabRecord as object),
-      id: tabId,
-      name: typeof tabRecord.name === 'string' ? tabRecord.name : '首页',
-      createdAt: typeof tabRecord.createdAt === 'number' ? tabRecord.createdAt : Date.now(),
-      columns: [
-        { id: createColumnId(tabId, 1), widgets: [] },
-        { id: createColumnId(tabId, 2), widgets: [] },
-        { id: createColumnId(tabId, 3), widgets: [] },
-        { id: createColumnId(tabId, 4), widgets: [] },
-      ],
-    };
-  });
-
-  if (migratedTabs.length > 0 && isRecord(firstTab) && Array.isArray(firstTab.widgets)) {
-    migratedTabs[0].columns[0].widgets = firstTab.widgets.map((widget) => ({
-      ...(isRecord(widget) ? widget : {}),
-      position: undefined,
-    } as unknown as Widget));
-  }
-
-  const legacySearchEngines = Array.isArray(data.searchEngines)
-    ? data.searchEngines.filter((engine): engine is StoredSearchEngine => (
-      isRecord(engine) &&
-      typeof engine.id === 'string' &&
-      typeof engine.name === 'string' &&
-      typeof engine.url === 'string' &&
-      engine.id !== 'sogou'
-    ))
-    : undefined;
 
   const result: Partial<StorageData> = {
     ...(data as object),
-    tabs: migratedTabs.length > 0 ? migratedTabs : [createDefaultTab()],
-    searchEngine: data.searchEngine === 'sogou'
-      ? undefined
-      : typeof data.searchEngine === 'string'
-        ? castEngineId(data.searchEngine)
-        : undefined,
-    searchEngines: legacySearchEngines,
+    tabs: normalizedTabs.length > 0 ? normalizedTabs : [createDefaultTab()],
+    searchEngine: typeof data.searchEngine === 'string' && data.searchEngine !== 'sogou'
+      ? castEngineId(data.searchEngine)
+      : castEngineId('baidu'),
+    searchEngines: normalizedSearchEngines,
   };
 
   return normalizeStorageData(result, defaults);

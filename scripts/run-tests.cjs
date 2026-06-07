@@ -139,6 +139,40 @@ const main = async () => {
     assert.equal(migrated.tabs[0].columns[0].widgets[0].id, 'legacy-task');
   });
 
+  await test('migrateStorageData 过滤非法小组件并补齐列数量', () => {
+    const migrated = migrateStorageData({
+      activeTabId: 'invalid-tab',
+      searchEngine: 'sogou',
+      tabs: [
+        {
+          id: 'legacy-tab',
+          name: '旧版页签',
+          columns: [
+            {
+              id: 'legacy-col',
+              widgets: [
+                { id: 'legacy-task', type: 'tasks', title: '合法任务', data: { tasks: [] } },
+                { id: 'bad-widget', type: 'ghost', title: '非法', data: {} },
+              ],
+            },
+          ],
+        },
+      ],
+      searchEngines: [
+        { id: 'baidu', name: 'Baidu', url: 'https://www.baidu.com' },
+        { id: 'baidu', name: 'Baidu2', url: 'https://www.baidu.com' },
+      ],
+    });
+
+    assert.equal(migrated.tabs[0].columns.length, 4);
+    assert.equal(migrated.tabs[0].columns[0].widgets.length, 1);
+    assert.equal(migrated.tabs[0].columns[0].widgets[0].type, 'tasks');
+    assert.equal(migrated.tabs[0].columns[0].widgets[0].id, 'legacy-task');
+    assert.equal(migrated.tabs[0].columns[0].widgets.every((widget) => widget.id !== 'bad-widget'), true);
+    assert.equal(migrated.searchEngine, migrated.searchEngines[0].id);
+    assert.equal(migrated.searchEngines.length, 1);
+  });
+
   await test('storage write queue preserves concurrent mutations', async () => {
     await storage.saveData({
       activeTabId: 'base',
