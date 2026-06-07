@@ -5,6 +5,17 @@
 
 import React from 'react';
 
+export type Brand<T extends string> = string & { readonly __brand: T };
+
+export type TabId = Brand<'TabId'>;
+export type ColumnId = Brand<'ColumnId'>;
+export type WidgetId = Brand<'WidgetId'>;
+export type LinkId = Brand<'LinkId'>;
+export type TaskId = Brand<'TaskId'>;
+export type ToastId = Brand<'ToastId'>;
+export type SearchEngineId = Brand<'SearchEngineId'>;
+export type RssFeedId = Brand<'RssFeedId'>;
+
 /**
  * 小组件类型枚举
  * - rss: RSS 订阅源
@@ -19,7 +30,7 @@ export type WidgetType = 'rss' | 'tasks' | 'weather' | 'links' | 'pomodoro' | 'n
  * RSS 订阅源数据
  */
 export interface RSSFeed {
-  id: string;              // 唯一标识符
+  id: RssFeedId;           // 唯一标识符
   name: string;            // 订阅源名称
   url: string;             // RSS URL
   items: RSSItem[];        // 文章列表
@@ -41,7 +52,7 @@ export interface RSSItem {
  * 任务数据
  */
 export interface Task {
-  id: string;              // 唯一标识符
+  id: TaskId;              // 唯一标识符
   title: string;           // 任务标题
   completed: boolean;      // 是否已完成
   createdAt: number;       // 创建时间戳
@@ -52,7 +63,7 @@ export interface Task {
  * 书签链接数据
  */
 export interface LinkItem {
-  id: string;              // 唯一标识符
+  id: LinkId;              // 唯一标识符
   name: string;            // 书签名称
   url: string;             // 链接 URL
   icon?: string;           // 可选的图标（favicon）
@@ -112,7 +123,7 @@ export interface WidgetDataMap {
 export type WidgetData = WidgetDataMap[WidgetType];
 
 interface BaseWidget<TType extends WidgetType> {
-  id: string;                    // 唯一标识符
+  id: WidgetId;                  // 唯一标识符
   type: TType;                   // 小组件类型
   title: string;                 // 显示标题
   data: WidgetDataMap[TType];    // 小组件特定数据
@@ -135,7 +146,7 @@ export type WidgetDataFor<TType extends WidgetType> = WidgetDataMap[TType];
  * 每列包含多个垂直堆叠的小组件
  */
 export interface Column {
-  id: string;              // 唯一标识符
+  id: ColumnId;              // 唯一标识符
   widgets: Widget[];       // 列中的小组件列表
 }
 
@@ -144,7 +155,7 @@ export interface Column {
  * 每个标签页包含 4 列布局
  */
 export interface Tab {
-  id: string;              // 唯一标识符
+  id: TabId;                 // 唯一标识符
   name: string;            // 标签页名称
   icon?: string;           // 可选的图标
   columns: Column[];       // 4 列布局
@@ -155,7 +166,7 @@ export interface Tab {
  * 搜索引擎数据
  */
 export interface SearchEngine {
-  id: string;              // 唯一标识符
+  id: SearchEngineId;       // 唯一标识符
   name: string;            // 引擎名称
   url: string;             // 搜索 URL 模板
   icon?: React.ReactNode;  // 可选的图标（运行时添加）
@@ -172,8 +183,8 @@ export type StoredSearchEngine = Omit<SearchEngine, 'icon'>;
  */
 export interface StorageData {
   tabs: Tab[];
-  activeTabId: string;
-  searchEngine: string;
+  activeTabId: TabId;
+  searchEngine: SearchEngineId;
   searchEngines: StoredSearchEngine[];
 }
 
@@ -182,7 +193,7 @@ export interface StorageData {
  * 用于 HTML5 Drag and Drop API
  */
 export interface DragData {
-  widgetId: string;        // 被拖拽的小组件 ID
-  tabId: string;           // 源标签页 ID
-  sourceColumnId: string;  // 源列 ID
+  widgetId: WidgetId;      // 被拖拽的小组件 ID
+  tabId: TabId;            // 源标签页 ID
+  sourceColumnId: ColumnId; // 源列 ID
 }

@@ -4,31 +4,30 @@ import { EditingLinkState } from '../components/LinkModal';
 import { normalizeHttpUrl } from '../utils/url';
 import { createWidget, getDefaultWidgetTitle } from '../utils/widgetDefaults';
 import { storage } from '../utils/storage';
-import { LinkItem, Tab, Widget, WidgetType } from '../types';
+import { createColumnId, createLinkId, createTabId } from '../utils/id';
+import { LinkId, LinkItem, Tab, TabId, Widget, WidgetType, WidgetId, ColumnId } from '../types';
 
 interface UseDashboardDataOptions {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
 
-const createBlankColumns = (tabId: string) => {
-  const createColumnId = (index: number) => `${tabId}-col-${index}`;
+const createBlankColumns = (tabId: TabId) => {
   return [
-    { id: createColumnId(1), widgets: [] },
-    { id: createColumnId(2), widgets: [] },
-    { id: createColumnId(3), widgets: [] },
-    { id: createColumnId(4), widgets: [] },
+    { id: createColumnId(tabId, 1), widgets: [] },
+    { id: createColumnId(tabId, 2), widgets: [] },
+    { id: createColumnId(tabId, 3), widgets: [] },
+    { id: createColumnId(tabId, 4), widgets: [] },
   ];
 };
 
 const createDefaultTab = (name: string): Tab => {
-  const now = Date.now();
-  const tabId = `tab-${now}`;
+  const tabId = createTabId();
   return {
     id: tabId,
     name,
     columns: createBlankColumns(tabId),
-    createdAt: now,
+    createdAt: Date.now(),
   };
 };
 
@@ -42,12 +41,12 @@ interface AddWidgetResult {
  */
 export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
-  const [activeTabId, setActiveTabId] = useState('');
+  const [activeTabId, setActiveTabId] = useState<TabId>('' as TabId);
   const [showAddTabInput, setShowAddTabInput] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [pendingWidgetType, setPendingWidgetType] = useState<WidgetType | null>(null);
   const [newWidgetTitle, setNewWidgetTitle] = useState('');
-  const [activeAddColumnId, setActiveAddColumnId] = useState<string | null>(null);
+  const [activeAddColumnId, setActiveAddColumnId] = useState<ColumnId | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [editingLink, setEditingLink] = useState<EditingLinkState | null>(null);
   const [newLinkName, setNewLinkName] = useState('');
@@ -58,7 +57,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     [tabs, activeTabId],
   );
 
-  const findCurrentLinksWidget = useCallback((widgetId: string, tabId: string) => {
+  const findCurrentLinksWidget = useCallback((widgetId: WidgetId, tabId: TabId) => {
     const tab = tabs.find((candidate) => candidate.id === tabId);
     if (!tab) return null;
     return tab.columns
@@ -93,7 +92,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     setTabs([defaultTab]);
   }, []);
 
-  const handleSetActiveTab = useCallback((tabId: string) => {
+  const handleSetActiveTab = useCallback((tabId: TabId) => {
     setActiveTabId(tabId);
     storage.setActiveTabId(tabId).catch((err) => {
       console.error('保存当前标签页失败:', err);
@@ -114,12 +113,12 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
   const handleConfirmAddTab = useCallback(async () => {
     if (!newTabName.trim()) return;
 
-    const now = Date.now();
+    const tabId = createTabId();
     const newTab: Tab = {
-      id: `tab-${now}`,
+      id: tabId,
       name: newTabName.trim(),
-      columns: createBlankColumns(`tab-${now}`),
-      createdAt: now,
+      columns: createBlankColumns(tabId),
+      createdAt: Date.now(),
     };
     const nextTabs = [...tabs, newTab];
 
@@ -141,7 +140,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     })();
   }, [loadData, newTabName, onError, onSuccess, tabs]);
 
-  const handleDeleteTab = useCallback(async (tabId: string, event: MouseEvent) => {
+  const handleDeleteTab = useCallback(async (tabId: TabId, event: MouseEvent) => {
     event.stopPropagation();
     if (tabs.length === 1) {
       onError('至少需要保留一个标签页');
@@ -176,7 +175,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     setNewWidgetTitle(getDefaultWidgetTitle(widgetType));
   }, []);
 
-  const handleSetActiveAddColumnId = useCallback((columnId: string | null) => {
+  const handleSetActiveAddColumnId = useCallback((columnId: ColumnId | null) => {
     setActiveAddColumnId(columnId);
   }, []);
 
@@ -212,7 +211,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     }
   }, [activeAddColumnId, activeTab, activeTabId, loadData, newWidgetTitle, onError, onSuccess, pendingWidgetType]);
 
-  const handleDeleteWidget = useCallback(async (widgetId: string) => {
+  const handleDeleteWidget = useCallback(async (widgetId: WidgetId) => {
     if (!activeTab) return;
     const widget = activeTab.columns
       .flatMap((column) => column.widgets)
@@ -230,7 +229,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     }
   }, [activeTab, activeTabId, loadData, onError, onSuccess]);
 
-  const handleToggleWidgetCollapsed = useCallback(async (widgetId: string) => {
+  const handleToggleWidgetCollapsed = useCallback(async (widgetId: WidgetId) => {
     if (!activeTab) return;
 
     const currentWidget = activeTab.columns
@@ -284,8 +283,8 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
   };
 
   const handleOpenLinkModal = useCallback((payload: {
-    widgetId: string;
-    linkId?: string;
+    widgetId: WidgetId;
+    linkId?: LinkId;
     isEdit: boolean;
     linkData?: LinkItem | null;
   }) => {
@@ -316,7 +315,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
 
     try {
       const links = widget.data.links || [];
-      if (editingLink.isEdit) {
+      if (editingLink.isEdit && editingLink.linkId) {
         const nextLinks = links.map((link) => (
           link.id === editingLink.linkId
             ? { ...link, name: newLinkName.trim(), url: normalizedUrl }
@@ -329,10 +328,10 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
         onSuccess('书签已更新');
       } else {
         const newLink = {
-          id: `link-${Date.now()}`,
-          name: newLinkName.trim(),
-          url: normalizedUrl,
-        };
+        id: createLinkId(),
+        name: newLinkName.trim(),
+        url: normalizedUrl,
+      };
         await storage.updateWidget(activeTabId, widget.id, {
           data: { ...widget.data, links: [...links, newLink] },
         });
@@ -347,7 +346,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     }
   }, [activeTabId, closeLinkModal, findCurrentLinksWidget, loadData, newLinkName, newLinkUrl, onError, onSuccess]);
 
-  const handleAddBookmark = useCallback(async (widgetId: string, name: string, url: string) => {
+  const handleAddBookmark = useCallback(async (widgetId: WidgetId, name: string, url: string) => {
     const widget = findCurrentLinksWidget(widgetId, activeTabId);
     if (!widget || widget.type !== 'links') return;
 
@@ -358,7 +357,7 @@ export const useDashboardData = ({ onSuccess, onError }: UseDashboardDataOptions
     }
 
     const newLink = {
-      id: `link-${Date.now()}`,
+      id: createLinkId(),
       name: name.trim(),
       url: normalizedUrl,
     };

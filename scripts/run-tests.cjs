@@ -9,6 +9,8 @@ const { buildSearchUrl, normalizeHttpUrl } = require('../.tmp-tests/src/utils/ur
 const { getDefaultWidgetData, getDefaultWidgetTitle } = require('../.tmp-tests/src/utils/widgetDefaults.js');
 const { moveWidgetInTabs } = require('../.tmp-tests/src/utils/widgetDrag.js');
 const { migrateStorageData, storage } = require('../.tmp-tests/src/utils/storage.js');
+const { createWidgetId, createFeedId, createTaskId, createLinkId, createToastId } = require('../.tmp-tests/src/utils/id.js');
+const { createWriteQueue } = require('../.tmp-tests/src/utils/writeQueue.js');
 
 const test = async (name, fn) => {
   try {
@@ -158,6 +160,38 @@ const main = async () => {
     const data = await storage.getData();
     assert.equal(data.searchEngine, 'bing');
     assert.equal(data.tabs.some((tab) => tab.id === 'work'), true);
+  });
+
+  await test('write queue runs tasks serially and waitForIdle works', async () => {
+    const queue = createWriteQueue();
+    const order = [];
+
+    const p1 = queue.enqueue(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      order.push('first');
+      return 'first';
+    });
+    const p2 = queue.enqueue(async () => {
+      order.push('second');
+      return 'second';
+    });
+    const p3 = queue.enqueue(async () => {
+      order.push('third');
+      return 'third';
+    });
+
+    await Promise.all([p1, p2, p3]);
+    assert.deepEqual(order, ['first', 'second', 'third']);
+    await queue.waitForIdle();
+    assert.equal(queue.getState().pending, 0);
+  });
+
+  await test('id helpers generate stable prefixes', () => {
+    assert.equal(createWidgetId().startsWith('widget-'), true);
+    assert.equal(createFeedId().startsWith('rss-'), true);
+    assert.equal(createTaskId().startsWith('task-'), true);
+    assert.equal(createLinkId().startsWith('link-'), true);
+    assert.equal(createToastId().startsWith('toast-'), true);
   });
 
   fs.rmSync(compiledRoot, { recursive: true, force: true });

@@ -1,19 +1,19 @@
 import React from 'react';
 import { Close } from '@icon-park/react';
-import { Tab, Widget } from '../types';
+import { ColumnId, Tab, Widget, WidgetId } from '../types';
 
 interface WidgetGridProps {
   activeTab?: Tab;
-  dragOverColumn: string | null;
+  dragOverColumn: ColumnId | null;
   dragOverIndex: number | null;
-  renderWidget: (widget: Widget, columnId: string) => React.ReactNode;
-  onDragOver: (event: React.DragEvent, columnId: string) => void;
-  onDragLeave: (event: React.DragEvent, columnId: string) => void;
-  onDrop: (event: React.DragEvent, columnId: string, targetIndex: number) => void;
-  onDragStart: (event: React.DragEvent, widgetId: string, columnId: string) => void;
+  renderWidget: (widget: Widget, columnId: ColumnId) => React.ReactNode;
+  onDragOver: (event: React.DragEvent, columnId: ColumnId) => void;
+  onDragLeave: (event: React.DragEvent, columnId: ColumnId) => void;
+  onDrop: (event: React.DragEvent, columnId: ColumnId, targetIndex: number) => void;
+  onDragStart: (event: React.DragEvent, widgetId: WidgetId, columnId: ColumnId) => void;
   onDragEnd: () => void;
-  onDeleteWidget: (widgetId: string) => void;
-  onRequestAddWidget: (columnId: string) => void;
+  onDeleteWidget: (widgetId: WidgetId) => void;
+  onRequestAddWidget: (columnId: ColumnId) => void;
 }
 
 const WidgetGrid: React.FC<WidgetGridProps> = ({

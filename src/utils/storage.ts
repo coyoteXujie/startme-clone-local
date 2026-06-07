@@ -10,14 +10,20 @@
 
 import {
   Column,
+  SearchEngineId,
   SearchEngine,
   StorageData,
   StoredSearchEngine,
   Tab,
   Widget,
   WidgetData,
+  WidgetId,
+  TabId,
+  ColumnId,
 } from '../types';
 import { getDefaultWidgetData } from './widgetDefaults';
+import { createWriteQueue } from './writeQueue';
+import { castTabId, createColumnId, createWidgetId, createTabId } from './id';
 
 // 存储键名常量
 const STORAGE_KEY = 'startme_data';
@@ -27,9 +33,9 @@ const STORAGE_KEY_BG_IMAGE = 'startme_bg_image';
  * 默认搜索引擎列表
  */
 const DEFAULT_SEARCH_ENGINES: StoredSearchEngine[] = [
-  { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=' },
-  { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=' },
-  { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=' },
+  { id: 'baidu' as SearchEngineId, name: '百度', url: 'https://www.baidu.com/s?wd=' },
+  { id: 'bing' as SearchEngineId, name: 'Bing', url: 'https://www.bing.com/search?q=' },
+  { id: 'google' as SearchEngineId, name: 'Google', url: 'https://www.google.com/search?q=' },
 ];
 
 type StorageRecord = Record<string, unknown>;
@@ -115,32 +121,27 @@ const getStorageAdapter = (): StorageAdapter => {
 
 const readStorageKeys = (keys: string[]): Promise<StorageRecord> => getStorageAdapter().get(keys);
 const writeStorageItems = (items: StorageRecord): Promise<void> => getStorageAdapter().set(items);
-
-let writeQueue: Promise<unknown> = Promise.resolve();
+const storageWriteQueue = createWriteQueue();
 
 /**
  * 串行化所有读改写操作。
  * chrome.storage.local 没有事务能力；两个并发的 get -> set 会互相覆盖旧快照。
  * 通过这个队列保证第二个写入一定读取到第一个写入完成后的最新数据。
  */
-const enqueueWrite = <T>(operation: () => Promise<T>): Promise<T> => {
-  const next = writeQueue.then(operation, operation);
-  writeQueue = next.catch(() => undefined);
-  return next;
-};
+const enqueueWrite = <T>(operation: () => Promise<T>): Promise<T> => storageWriteQueue.enqueue(operation);
 
 /**
  * 生成默认标签页结构
  */
 const createDefaultTab = (): Tab => ({
-  id: 'default-1',
+  id: castTabId('default-1'),
   name: '首页',
   columns: [
     {
-      id: 'col-1',
+      id: createColumnId(castTabId('default-1'), 1),
       widgets: [
         {
-          id: 'widget-1',
+          id: createWidgetId(),
           type: 'tasks',
           title: '任务',
           data: getDefaultWidgetData('tasks'),
@@ -148,26 +149,26 @@ const createDefaultTab = (): Tab => ({
       ],
     },
     {
-      id: 'col-2',
+      id: createColumnId(castTabId('default-1'), 2),
       widgets: [
         {
-          id: 'widget-2',
+          id: createWidgetId(),
           type: 'weather',
           title: '天气',
           data: getDefaultWidgetData('weather'),
         },
       ],
     },
-    { id: 'col-3', widgets: [] },
-    { id: 'col-4', widgets: [] },
+    { id: createColumnId(castTabId('default-1'), 3), widgets: [] },
+    { id: createColumnId(castTabId('default-1'), 4), widgets: [] },
   ],
   createdAt: Date.now(),
 });
 
 const createDefaultData = (): StorageData => ({
   tabs: [createDefaultTab()],
-  activeTabId: 'default-1',
-  searchEngine: 'baidu',
+  activeTabId: castTabId('default-1'),
+  searchEngine: 'baidu' as SearchEngineId,
   searchEngines: DEFAULT_SEARCH_ENGINES,
 });
 
@@ -232,7 +233,7 @@ export const migrateStorageData = (data: unknown): StorageData => {
     }
 
     if (processedData.searchEngine === 'sogou') {
-      processedData.searchEngine = 'baidu';
+      processedData.searchEngine = 'baidu' as SearchEngineId;
     }
 
     const { bgImage, ...result } = processedData;
@@ -242,17 +243,17 @@ export const migrateStorageData = (data: unknown): StorageData => {
 
   const migratedTabs: Tab[] = tabsCandidate.map((tab) => {
     const tabRecord = isRecord(tab) ? tab : {};
-    const tabId = typeof tabRecord.id === 'string' ? tabRecord.id : `tab-${Date.now()}`;
+    const tabId = typeof tabRecord.id === 'string' ? castTabId(tabRecord.id) : createTabId();
     return {
       ...(tabRecord as object),
       id: tabId,
       name: typeof tabRecord.name === 'string' ? tabRecord.name : '首页',
       createdAt: typeof tabRecord.createdAt === 'number' ? tabRecord.createdAt : Date.now(),
       columns: [
-        { id: `col-1-${tabId}`, widgets: [] },
-        { id: `col-2-${tabId}`, widgets: [] },
-        { id: `col-3-${tabId}`, widgets: [] },
-        { id: `col-4-${tabId}`, widgets: [] },
+        { id: createColumnId(tabId, 1), widgets: [] },
+        { id: createColumnId(tabId, 2), widgets: [] },
+        { id: createColumnId(tabId, 3), widgets: [] },
+        { id: createColumnId(tabId, 4), widgets: [] },
       ],
     };
   });
@@ -277,7 +278,12 @@ export const migrateStorageData = (data: unknown): StorageData => {
   const result: Partial<StorageData> = {
     ...(data as object),
     tabs: migratedTabs.length > 0 ? migratedTabs : [createDefaultTab()],
-    searchEngine: data.searchEngine === 'sogou' ? undefined : data.searchEngine as string | undefined,
+    searchEngine:
+      data.searchEngine === 'sogou'
+        ? undefined
+        : typeof data.searchEngine === 'string'
+          ? data.searchEngine as SearchEngineId
+          : undefined,
     searchEngines: legacySearchEngines,
   };
 
@@ -329,7 +335,7 @@ export const storage = {
    * 获取所有数据
    */
   async getData(): Promise<StorageData> {
-    await writeQueue.catch(() => undefined);
+    await storageWriteQueue.waitForIdle().catch(() => undefined);
     return rawGetData();
   },
 
@@ -385,7 +391,7 @@ export const storage = {
   /**
    * 更新标签页
    */
-  async updateTab(id: string, updates: Partial<Tab>): Promise<void> {
+  async updateTab(id: TabId, updates: Partial<Tab>): Promise<void> {
     await mutateData((data) => {
       const found = data.tabs.some((tab) => tab.id === id);
       if (!found) {
@@ -402,7 +408,7 @@ export const storage = {
   /**
    * 删除标签页
    */
-  async deleteTab(id: string): Promise<void> {
+  async deleteTab(id: TabId): Promise<void> {
     await mutateData((data) => ({
       ...data,
       tabs: data.tabs.filter((tab) => tab.id !== id),
@@ -412,7 +418,7 @@ export const storage = {
   /**
    * 获取激活的标签页 ID
    */
-  async getActiveTabId(): Promise<string> {
+  async getActiveTabId(): Promise<TabId> {
     const data = await this.getData();
     return data.activeTabId;
   },
@@ -420,14 +426,14 @@ export const storage = {
   /**
    * 设置激活的标签页 ID
    */
-  async setActiveTabId(id: string): Promise<void> {
+  async setActiveTabId(id: TabId): Promise<void> {
     await mutateData((data) => ({ ...data, activeTabId: id }));
   },
 
   /**
    * 获取小组件数据
    */
-  async getWidgetData(tabId: string, widgetId: string): Promise<WidgetData | null> {
+  async getWidgetData(tabId: TabId, widgetId: WidgetId): Promise<WidgetData | null> {
     const tabs = await this.getTabs();
     const tab = tabs.find((t) => t.id === tabId);
 
@@ -447,7 +453,7 @@ export const storage = {
   /**
    * 保存小组件数据
    */
-  async saveWidgetData(tabId: string, widgetId: string, widgetData: WidgetData): Promise<void> {
+  async saveWidgetData(tabId: TabId, widgetId: WidgetId, widgetData: WidgetData): Promise<void> {
     await mutateData((data) => {
       let updated = false;
       const tabs = data.tabs.map((tab) => {
@@ -484,7 +490,7 @@ export const storage = {
   /**
    * 添加小组件到指定列
    */
-  async addWidgetToColumn(tabId: string, columnId: string, widget: Widget): Promise<void> {
+  async addWidgetToColumn(tabId: TabId, columnId: ColumnId, widget: Widget): Promise<void> {
     await mutateData((data) => {
       let tabExists = false;
       let columnExists = false;
@@ -511,7 +517,7 @@ export const storage = {
   /**
    * 删除小组件
    */
-  async deleteWidget(tabId: string, widgetId: string): Promise<void> {
+  async deleteWidget(tabId: TabId, widgetId: WidgetId): Promise<void> {
     await mutateData((data) => {
       let tabExists = false;
       let widgetExists = false;
@@ -538,7 +544,11 @@ export const storage = {
   /**
    * 更新小组件
    */
-  async updateWidget(tabId: string, widgetId: string, updates: Partial<Omit<Widget, 'type'>> & { data?: WidgetData }): Promise<void> {
+  async updateWidget(
+    tabId: TabId,
+    widgetId: WidgetId,
+    updates: Partial<Omit<Widget, 'type'>> & { data?: WidgetData },
+  ): Promise<void> {
     await mutateData((data) => {
       let tabExists = false;
       let widgetExists = false;
@@ -570,9 +580,9 @@ export const storage = {
    * 支持跨列拖拽和排序
    */
   async moveWidget(
-    tabId: string,
-    widgetId: string,
-    targetColumnId: string,
+    tabId: TabId,
+    widgetId: WidgetId,
+    targetColumnId: ColumnId,
     targetIndex: number
   ): Promise<void> {
     await mutateData((data) => {
@@ -654,15 +664,15 @@ export const storage = {
     await enqueueWrite(() => writeStorageItems({ [STORAGE_KEY_BG_IMAGE]: url }));
   },
 
-  async getSearchEngine(): Promise<string> {
+  async getSearchEngine(): Promise<SearchEngineId> {
     const data = await this.getData();
-    return data.searchEngine || 'baidu';
+    return data.searchEngine || 'baidu' as SearchEngineId;
   },
 
   /**
    * 设置默认搜索引擎
    */
-  async setSearchEngine(engine: string): Promise<void> {
+  async setSearchEngine(engine: SearchEngineId): Promise<void> {
     await mutateData((data) => ({ ...data, searchEngine: engine }));
   },
 

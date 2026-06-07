@@ -1,15 +1,15 @@
 import React, { useRef, useEffect } from 'react';
-import { Tab } from '../types';
+import { Tab, TabId } from '../types';
 import { Close, Plus } from '@icon-park/react';
 
 interface TabBarProps {
   tabs: Tab[];
-  activeTabId: string;
+  activeTabId: TabId;
   showAddTabInput: boolean;
   newTabName: string;
-  onTabClick: (id: string) => void;
+  onTabClick: (id: TabId) => void;
   onAddTab: () => void;
-  onDeleteTab: (id: string, e: React.MouseEvent) => void;
+  onDeleteTab: (id: TabId, e: React.MouseEvent) => void;
   onNewTabNameChange: (name: string) => void;
   onConfirmAddTab: () => void;
   onCancelAddTab: () => void;

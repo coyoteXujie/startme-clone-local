@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronDown, Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
-import { WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, TabId, WidgetDataFor, WidgetOfType } from '../../types';
 
 type Timeout = ReturnType<typeof setTimeout>;
 
 interface PomodoroProps {
   widget: WidgetOfType<'pomodoro'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'pomodoro'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }

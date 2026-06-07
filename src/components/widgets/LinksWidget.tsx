@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo } from 'react';
-import { LinkItem, WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, LinkId, LinkItem, TabId, WidgetDataFor, WidgetOfType, WidgetId } from '../../types';
 import { Down, Edit, Plus, Close } from '@icon-park/react';
 import { Cloud, LayoutGrid } from 'lucide-react';
 
@@ -7,12 +7,12 @@ type Timeout = ReturnType<typeof setTimeout>;
 
 interface LinksWidgetProps {
   widget: WidgetOfType<'links'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'links'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
-  onRequestOpenModal: (link: { linkId?: string; isEdit: boolean }, linkData?: LinkItem | null) => void;
-  onAddBookmark?: (widgetId: string, name: string, url: string) => Promise<void>;
+  onRequestOpenModal: (link: { linkId?: LinkId; isEdit: boolean }, linkData?: LinkItem | null) => void;
+  onAddBookmark?: (widgetId: WidgetId, name: string, url: string) => Promise<void>;
 }
 
 const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggleCollapsed, onRequestOpenModal, onAddBookmark }) => {
@@ -23,8 +23,8 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
 
   const links = widget.data.links || [];
   const viewMode = widget.data.viewMode || 'grid';
-  const [failedIcons, setFailedIcons] = useState<Map<string, number>>(new Map());
-  const loadingIconsRef = useRef<Map<string, { img: HTMLImageElement; timeoutId: Timeout }>>(new Map());
+  const [failedIcons, setFailedIcons] = useState<Map<LinkId, number>>(new Map());
+  const loadingIconsRef = useRef<Map<LinkId, { img: HTMLImageElement; timeoutId: Timeout }>>(new Map());
   const timeoutsRef = useRef<Set<Timeout>>(new Set());
 
   const getDomainFromUrl = (url: string): string => {
@@ -166,13 +166,9 @@ const LinksWidget: React.FC<LinksWidgetProps> = ({ widget, onDataChange, onToggl
     await onDataChange({ links: newLinks, viewMode });
   };
 
-  const handleDeleteLink = async (linkId: string) => {
-    if (linkId === 'all') {
-      await syncData([]);
-    } else {
-      const updatedLinks = links.filter((link: LinkItem) => link.id !== linkId);
-      await syncData(updatedLinks);
-    }
+  const handleDeleteLink = async (linkId: LinkId) => {
+    const updatedLinks = links.filter((link: LinkItem) => link.id !== linkId);
+    await syncData(updatedLinks);
   };
 
   const openEditModal = (link: LinkItem) => {

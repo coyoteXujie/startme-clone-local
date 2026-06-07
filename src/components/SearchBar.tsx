@@ -1,18 +1,18 @@
 import React from 'react';
 import { Search, Setting } from '@icon-park/react';
-import { SearchEngine } from '../types';
+import { SearchEngine, SearchEngineId } from '../types';
 import { SEARCH_ENGINE_ICONS } from './SearchEngineIcons';
 
 interface SearchBarProps {
   engines: SearchEngine[];
-  activeEngineId: string;
+  activeEngineId: SearchEngineId;
   query: string;
   showEngineSelect: boolean;
   inputRef: (node: HTMLInputElement | null) => void;
   onSubmit: (event: React.FormEvent) => void;
   onQueryChange: (query: string) => void;
   onToggleEngineSelect: () => void;
-  onSelectEngine: (engineId: string) => void;
+  onSelectEngine: (engineId: SearchEngineId) => void;
   onOpenSettings: () => void;
 }
 

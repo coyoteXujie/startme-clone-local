@@ -1,10 +1,11 @@
 import React from 'react';
 import { Toast as ToastType } from '../types/toast';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { ToastId } from '../types';
 
 interface ToastProps {
   toast: ToastType;
-  onDismiss: (id: string) => void;
+  onDismiss: (id: ToastId) => void;
 }
 
 const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {

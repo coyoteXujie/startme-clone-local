@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RSSFeed, RSSItem, WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, RSSFeed, RSSItem, RssFeedId, TabId, WidgetDataFor, WidgetOfType } from '../../types';
+import { createFeedId } from '../../utils/id';
 import { Down, Refresh, Delete, Plus } from '@icon-park/react';
 
 interface RSSWidgetProps {
   widget: WidgetOfType<'rss'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'rss'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }
@@ -33,9 +34,9 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const [showAddForm, setShowAddForm] = useState(false);
   const [newFeedName, setNewFeedName] = useState('');
   const [newFeedUrl, setNewFeedUrl] = useState('');
-  const [loadingFeeds, setLoadingFeeds] = useState<Set<string>>(new Set());
+  const [loadingFeeds, setLoadingFeeds] = useState<Set<RssFeedId>>(new Set());
   const [feedPages, setFeedPages] = useState<Record<string, number>>({});
-  const [activeFeedId, setActiveFeedId] = useState<string | null>(feeds[0]?.id || null);
+  const [activeFeedId, setActiveFeedId] = useState<RssFeedId | null>(feeds[0]?.id || null);
   const feedsRef = useRef<RSSFeed[]>(feeds);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -58,7 +59,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
     );
   }, [widget.data.feeds]);
 
-  const handlePageChange = (feedId: string, delta: number) => {
+  const handlePageChange = (feedId: RssFeedId, delta: number) => {
     setFeedPages(prev => ({
       ...prev,
       [feedId]: Math.max(0, (prev[feedId] || 0) + delta),
@@ -68,7 +69,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
   const handleAddFeed = async () => {
     if (!newFeedName.trim() || !newFeedUrl.trim()) return;
 
-    const feedId = `rss-${Date.now()}`;
+    const feedId = createFeedId();
     const newFeed: RSSFeed = {
       id: feedId,
       name: newFeedName.trim(),
@@ -89,7 +90,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
     loadRSSFeed(feedId, newFeedUrl.trim());
   };
 
-  const loadRSSFeed = async (feedId: string, url: string) => {
+  const loadRSSFeed = async (feedId: RssFeedId, url: string) => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -148,7 +149,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ widget, onDataChange, onToggleCol
     }
   };
 
-  const handleDeleteFeed = async (feedId: string) => {
+  const handleDeleteFeed = async (feedId: RssFeedId) => {
     const updatedFeeds = feeds.filter((feed) => feed.id !== feedId);
     setFeeds(updatedFeeds);
     feedsRef.current = updatedFeeds;

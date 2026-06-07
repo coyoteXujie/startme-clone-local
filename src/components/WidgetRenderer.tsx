@@ -1,5 +1,5 @@
 import React from 'react';
-import { LinkItem, Widget } from '../types';
+import { ColumnId, LinkId, LinkItem, TabId, Widget, WidgetId } from '../types';
 import DevToolboxWidget from './widgets/DevToolboxWidget';
 import LinksWidget from './widgets/LinksWidget';
 import NotesWidget from './widgets/NotesWidget';
@@ -9,25 +9,25 @@ import TaskWidget from './widgets/TaskWidget';
 import WeatherWidget from './widgets/WeatherWidget';
 
 export type WidgetDataChangeHandler = <TWidget extends Widget>(
-  tabId: string,
+  tabId: TabId,
   widget: TWidget,
   data: TWidget['data'],
 ) => Promise<void> | void;
 
 interface WidgetRendererProps {
   widget: Widget;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: WidgetDataChangeHandler;
-  onDeleteWidget: (widgetId: string) => void;
-  onToggleCollapsed: (widgetId: string) => void;
+  onDeleteWidget: (widgetId: WidgetId) => void;
+  onToggleCollapsed: (widgetId: WidgetId) => void;
   onOpenLinkModal: (payload: {
-    widgetId: string;
-    linkId?: string;
+    widgetId: WidgetId;
+    linkId?: LinkId;
     isEdit: boolean;
     linkData?: LinkItem | null;
   }) => void;
-  onAddBookmark: (widgetId: string, name: string, url: string) => Promise<void>;
+  onAddBookmark: (widgetId: WidgetId, name: string, url: string) => Promise<void>;
 }
 
 const WidgetRenderer: React.FC<WidgetRendererProps> = ({

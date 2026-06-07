@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Toast, ToastType } from '../types/toast';
+import { createToastId } from '../utils/id';
+import { ToastId } from '../types';
 
 /**
  * Toast 通知 Hook
@@ -15,7 +17,7 @@ export function useToast() {
    * @param duration 自动关闭时间（毫秒），默认 3000ms，0 表示不自动关闭
    */
   const showToast = useCallback((type: ToastType, message: string, duration: number = 3000) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const id = createToastId();
     const newToast: Toast = { id, type, message, duration };
 
     setToasts(prev => [...prev, newToast]);
@@ -31,7 +33,7 @@ export function useToast() {
   /**
    * 关闭指定 Toast
    */
-  const dismissToast = useCallback((id: string) => {
+  const dismissToast = useCallback((id: ToastId) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 

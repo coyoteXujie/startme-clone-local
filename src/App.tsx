@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Widget } from './types';
+import { ColumnId, Widget } from './types';
 import { useToast } from './hooks/useToast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSearchEngines } from './hooks/useSearchEngines';
@@ -192,7 +192,7 @@ const App: React.FC = () => {
     }
   };
 
-  const renderWidget = (widget: Widget, columnId: string) => {
+  const renderWidget = (widget: Widget, columnId: ColumnId) => {
     return (
       <WidgetRenderer
         widget={widget}
@@ -207,7 +207,7 @@ const App: React.FC = () => {
     );
   };
 
-  const openWidgetPanel = (columnId: string) => {
+  const openWidgetPanel = (columnId: ColumnId) => {
     handleSetActiveAddColumnId(columnId);
     setShowAddWidget(true);
   };

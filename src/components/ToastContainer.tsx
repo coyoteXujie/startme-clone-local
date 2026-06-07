@@ -1,10 +1,11 @@
 import React from 'react';
 import Toast from './Toast';
 import { Toast as ToastType } from '../types/toast';
+import { ToastId } from '../types';
 
 interface ToastContainerProps {
   toasts: ToastType[];
-  onDismiss: (id: string) => void;
+  onDismiss: (id: ToastId) => void;
 }
 
 const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {

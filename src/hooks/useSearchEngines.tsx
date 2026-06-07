@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { SearchEngine } from '../types';
+import { SearchEngine, SearchEngineId } from '../types';
 import { storage } from '../utils/storage';
 import { buildSearchUrl, normalizeHttpUrl } from '../utils/url';
 import { createSearchEngineInitialIcon, withSearchEngineIcon } from '../components/SearchEngineIcons';
+import { createEngineId } from '../utils/id';
 
 interface UseSearchEnginesOptions {
   onSuccess: (message: string) => void;
@@ -14,7 +15,7 @@ interface UseSearchEnginesOptions {
  * App 只负责把这些状态接到 UI 上，搜索模板校验和默认引擎切换集中在这里。
  */
 export const useSearchEngines = ({ onSuccess, onError }: UseSearchEnginesOptions) => {
-  const [searchEngine, setSearchEngine] = useState<string>('baidu');
+  const [searchEngine, setSearchEngine] = useState<SearchEngineId>('baidu' as SearchEngineId);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchEngines, setSearchEngines] = useState<SearchEngine[]>([]);
   const [showEngineSelect, setShowEngineSelect] = useState(false);
@@ -33,7 +34,7 @@ export const useSearchEngines = ({ onSuccess, onError }: UseSearchEnginesOptions
     setSearchEngine(storedSearchEngine);
   }, []);
 
-  const handleSetSearchEngine = useCallback(async (engine: string) => {
+  const handleSetSearchEngine = useCallback(async (engine: SearchEngineId) => {
     try {
       await storage.setSearchEngine(engine);
       setSearchEngine(engine);
@@ -66,7 +67,7 @@ export const useSearchEngines = ({ onSuccess, onError }: UseSearchEnginesOptions
 
     const trimmedName = newEngineName.trim();
     const newEngine: SearchEngine = {
-      id: `engine-${Date.now()}`,
+      id: createEngineId(),
       name: trimmedName,
       url: normalizedUrl,
       icon: createSearchEngineInitialIcon(trimmedName),
@@ -85,7 +86,7 @@ export const useSearchEngines = ({ onSuccess, onError }: UseSearchEnginesOptions
     }
   }, [newEngineName, newEngineUrl, onError, onSuccess, searchEngines]);
 
-  const handleDeleteEngine = useCallback(async (engineId: string) => {
+  const handleDeleteEngine = useCallback(async (engineId: SearchEngineId) => {
     const updatedEngines = searchEngines.filter((engine) => engine.id !== engineId);
     if (updatedEngines.length === 0) {
       onError('至少保留一个搜索引擎');

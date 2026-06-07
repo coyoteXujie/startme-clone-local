@@ -1,9 +1,9 @@
-import { DragData, Tab, Widget } from '../types';
+import { ColumnId, DragData, Tab, Widget } from '../types';
 
 interface MoveWidgetInTabsParams {
   tabs: Tab[];
   dragData: DragData;
-  targetColumnId: string;
+  targetColumnId: ColumnId;
   targetIndex: number;
 }
 

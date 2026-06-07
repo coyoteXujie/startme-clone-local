@@ -1,9 +1,10 @@
 import React from 'react';
 import { Close } from '@icon-park/react';
+import { LinkId, WidgetId } from '../types';
 
 export interface EditingLinkState {
-  widgetId: string;
-  linkId?: string;
+  widgetId: WidgetId;
+  linkId?: LinkId;
   isEdit: boolean;
 }
 

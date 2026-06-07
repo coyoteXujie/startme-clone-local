@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { DragData, Tab } from '../types';
+import { ColumnId, DragData, Tab, TabId, WidgetId } from '../types';
 import { storage } from '../utils/storage';
 import { moveWidgetInTabs } from '../utils/widgetDrag';
 
 interface UseWidgetDragOptions {
   activeTab?: Tab;
-  activeTabId: string;
+  activeTabId: TabId;
   setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
   reloadData: () => Promise<void>;
   onError: (message: string) => void;
@@ -23,10 +23,10 @@ export const useWidgetDrag = ({
   onError,
 }: UseWidgetDragOptions) => {
   const [draggedWidget, setDraggedWidget] = useState<DragData | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnId | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const handleDragStart = useCallback((event: React.DragEvent, widgetId: string, columnId: string) => {
+  const handleDragStart = useCallback((event: React.DragEvent, widgetId: WidgetId, columnId: ColumnId) => {
     const dragData: DragData = {
       widgetId,
       tabId: activeTabId,
@@ -38,7 +38,7 @@ export const useWidgetDrag = ({
     event.dataTransfer.setDragImage(event.currentTarget as HTMLElement, 20, 20);
   }, [activeTabId]);
 
-  const handleDragOver = useCallback((event: React.DragEvent, columnId: string) => {
+  const handleDragOver = useCallback((event: React.DragEvent, columnId: ColumnId) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
 
@@ -67,7 +67,7 @@ export const useWidgetDrag = ({
     setDragOverIndex(dropIndex);
   }, [activeTab]);
 
-  const handleDragLeave = useCallback((event: React.DragEvent, _columnId: string) => {
+  const handleDragLeave = useCallback((event: React.DragEvent, _columnId: ColumnId) => {
     event.preventDefault();
 
     const column = event.currentTarget as HTMLElement;
@@ -83,7 +83,7 @@ export const useWidgetDrag = ({
     setDragOverIndex(null);
   }, []);
 
-  const handleDrop = useCallback((event: React.DragEvent, targetColumnId: string, targetIndex: number) => {
+  const handleDrop = useCallback((event: React.DragEvent, targetColumnId: ColumnId, targetIndex: number) => {
     event.preventDefault();
     setDragOverColumn(null);
     setDragOverIndex(null);

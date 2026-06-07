@@ -1,4 +1,5 @@
 import { Widget, WidgetDataFor, WidgetType } from '../types';
+import { createWidgetId } from './id';
 
 const DEFAULT_WIDGET_TITLES: Record<WidgetType, string> = {
   tasks: '任务',
@@ -33,18 +34,20 @@ export function getDefaultWidgetData<TType extends WidgetType>(type: TType): Wid
 export const createWidget = (type: WidgetType, title: string): Widget => {
   switch (type) {
     case 'tasks':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'weather':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'rss':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'links':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'pomodoro':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'notes':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
     case 'devtoolbox':
-      return { id: `widget-${Date.now()}`, type, title, data: getDefaultWidgetData(type) };
+      return { id: createWidgetId(), type, title, data: getDefaultWidgetData(type) };
+    default:
+      throw new Error(`Unsupported widget type: ${type}`);
   }
 };

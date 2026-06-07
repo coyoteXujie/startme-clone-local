@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, TabId, WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Plus, Close } from '@icon-park/react';
 import { Sun, Cloud, CloudRain, CloudDrizzle, Snowflake, CloudLightning } from 'lucide-react';
 
 interface WeatherWidgetProps {
   widget: WidgetOfType<'weather'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'weather'>) => Promise<void> | void;
   onToggleCollapsed: () => void;
 }

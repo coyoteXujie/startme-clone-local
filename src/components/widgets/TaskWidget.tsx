@@ -1,11 +1,12 @@
 import React, { useState, memo } from 'react';
-import { Task, WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, Task, TaskId, TabId, WidgetDataFor, WidgetOfType } from '../../types';
 import { Down, Edit, Check, Close } from '@icon-park/react';
+import { createTaskId } from '../../utils/id';
 
 interface TaskWidgetProps {
   widget: WidgetOfType<'tasks'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'tasks'>) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
@@ -13,7 +14,7 @@ interface TaskWidgetProps {
 
 const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleCollapsed }) => {
   const [newTask, setNewTask] = useState('');
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<TaskId | null>(null);
   const [editingText, setEditingText] = useState('');
   const tasks: Task[] = widget.data.tasks || [];
 
@@ -21,7 +22,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     if (!newTask.trim()) return;
 
     const task: Task = {
-      id: `task-${Date.now()}`,
+      id: createTaskId(),
       title: newTask.trim(),
       completed: false,
       createdAt: Date.now(),
@@ -31,7 +32,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     setNewTask('');
   };
 
-  const handleToggleTask = async (taskId: string) => {
+  const handleToggleTask = async (taskId: TaskId) => {
     const updatedTasks = tasks.map((task) =>
       task.id === taskId
         ? {
@@ -44,7 +45,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     await onDataChange({ tasks: updatedTasks });
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async (taskId: TaskId) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId);
     await onDataChange({ tasks: updatedTasks });
   };
@@ -54,7 +55,7 @@ const TaskWidget: React.FC<TaskWidgetProps> = ({ widget, onDataChange, onToggleC
     setEditingText(task.title);
   };
 
-  const handleSaveEdit = async (taskId: string) => {
+  const handleSaveEdit = async (taskId: TaskId) => {
     if (!editingText.trim()) return;
     const updatedTasks = tasks.map((task) =>
       task.id === taskId

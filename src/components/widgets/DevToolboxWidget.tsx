@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { Code, LockOne, Timer, Copy, CheckOne, Refresh } from '@icon-park/react';
-import { DevToolboxTab, WidgetDataFor, WidgetOfType } from '../../types';
+import { ColumnId, DevToolboxTab, TabId, WidgetDataFor, WidgetOfType } from '../../types';
 
 interface DevToolboxWidgetProps {
   widget: WidgetOfType<'devtoolbox'>;
-  tabId: string;
-  columnId: string;
+  tabId: TabId;
+  columnId: ColumnId;
   onDataChange: (data: WidgetDataFor<'devtoolbox'>) => Promise<void> | void;
   onDelete: () => void;
   onToggleCollapsed: () => void;
